@@ -1,0 +1,407 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ENUMS
+enum Role {
+  admin
+  doctor
+  receptionist
+  patient
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum AppointmentStatus {
+  scheduled
+  waiting
+  in_progress
+  done
+  cancelled
+  no_show
+}
+
+enum AppointmentType {
+  new
+  follow_up
+}
+
+enum InvoiceStatus {
+  pending
+  partial
+  paid
+}
+
+enum PaymentMethod {
+  cash
+  card
+  transfer
+}
+
+enum MedicalFileSource {
+  visit
+  onboarding
+  manual
+}
+
+enum MedicalFileType {
+  lab
+  xray
+  report
+  other
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+}
+
+// MODELS
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @db.VarChar(150)
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.Text
+  role         Role       @default(patient)
+  phone        String?   @db.VarChar(20)
+  isActive     Boolean   @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  doctors   Doctor[]
+  patient   Patient?
+  auditLogs AuditLog[]
+  resetTokens PasswordResetToken[]
+  @@map("users")
+}
+
+model Doctor {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  specialty       String?  @db.VarChar(100)
+  licenseNumber   String?  @unique @map("license_number") @db.VarChar(100)
+  bio             String?  @db.Text
+  consultationFee Decimal? @map("consultation_fee") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedules       DoctorSchedule[]
+  timeBlocks      DoctorTimeBlock[]
+  appointments    Appointment[]
+  invoices        Invoice[]
+  reviews         Review[]
+  services        DoctorService[]
+  @@map("doctors")
+}
+
+model DoctorSchedule {
+  id        String   @id @default(uuid()) @db.Uuid
+  doctorId  String   @map("doctor_id") @db.Uuid
+  dayOfWeek Int      @map("day_of_week") @db.SmallInt
+  startTime DateTime @map("start_time") @db.Time
+  endTime   DateTime @map("end_time") @db.Time
+  isActive  Boolean  @default(true) @map("is_active")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, dayOfWeek])
+  @@map("doctor_schedules")
+}
+
+model DoctorTimeBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  doctorId  String   @map("doctor_id") @db.Uuid
+  startsAt  DateTime @map("starts_at") @db.Timestamptz
+  endsAt    DateTime @map("ends_at") @db.Timestamptz
+  reason    String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  // Note: ends_at > starts_at constraint should be checked at the application level
+  @@map("doctor_time_blocks")
+}
+
+model Patient {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String?   @unique @map("user_id") @db.Uuid
+  patientCode    String    @unique @map("patient_code") @db.VarChar(20)
+  name           String    @db.VarChar(150)
+  dateOfBirth    DateTime? @map("date_of_birth") @db.Date
+  gender         Gender?
+  phone          String?   @db.VarChar(20)
+  address        String?   @db.Text
+  bloodType      String?   @map("blood_type") @db.VarChar(5)
+  chronicDiseases String?   @map("chronic_diseases") @db.Text
+  allergies      String?   @db.Text
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reviews      Review[]
+  appointments Appointment[]
+  invoices     Invoice[]
+  medicalFiles MedicalFile[]
+
+  @@map("patients")
+}
+// finish users Modles
+
+// start models for key features
+model Appointment {
+  id           String            @id @default(uuid()) @db.Uuid
+  patientId    String            @map("patient_id") @db.Uuid
+  doctorId     String            @map("doctor_id") @db.Uuid
+  serviceId    String            @map("service_id") @db.Uuid
+  scheduledAt  DateTime          @map("scheduled_at") @db.Timestamptz
+  status       AppointmentStatus @default(scheduled)
+  type         AppointmentType   @default(new)
+  notes        String?           @db.Text
+  reminderSent Boolean           @default(false) @map("reminder_sent")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor     Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  service    Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  visits     Visit[]
+  @@map("appointments")
+}
+
+model Visit {
+  id             String    @id @default(uuid()) @db.Uuid
+  appointmentId  String    @map("appointment_id") @db.Uuid
+  chiefComplaint String?   @map("chief_complaint") @db.Text
+  diagnosis      String?   @db.Text
+  notes          String?   @db.Text
+  weightKg       Decimal?  @map("weight_kg") @db.Decimal(5, 2)
+  heightCm       Decimal?  @map("height_cm") @db.Decimal(5, 2)
+  bloodPressure  String?   @map("blood_pressure") @db.VarChar(10)
+  temperatureC   Decimal?  @map("temperature_c") @db.Decimal(4, 1)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+  visitDate      DateTime  @default(now()) @map("visit_date") @db.Timestamptz
+
+  appointment   Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  prescriptions Prescription[]
+  invoices      Invoice[]
+  medicalFiles  MedicalFile[]
+
+  @@map("visits")
+}
+
+model Prescription {
+  id        String             @id @default(uuid()) @db.Uuid
+  visitId   String             @map("visit_id") @db.Uuid
+  notes     String?            @db.Text
+  deletedAt DateTime?          @map("deleted_at") @db.Timestamptz
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  visit Visit              @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  items PrescriptionItem[]
+
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  prescriptionId String   @map("prescription_id") @db.Uuid
+  medicineName   String   @map("medicine_name") @db.VarChar(150)
+  dosage         String?  @db.VarChar(50)
+  frequency      String?  @db.VarChar(100)
+  duration       String?  @db.VarChar(50)
+  instructions   String?  @db.Text
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@map("prescription_items")
+}
+
+model Invoice { // it's just wrapper for all invoices like an arr contain el to get all its el easily
+  id            String        @id @default(uuid()) @db.Uuid
+  visitId       String        @map("visit_id") @db.Uuid
+  patientId     String        @map("patient_id") @db.Uuid
+  doctorId      String        @map("doctor_id") @db.Uuid
+  invoiceNumber String        @unique @map("invoice_number") @db.VarChar(30)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  paidAmount    Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  status        InvoiceStatus @default(pending)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  visit    Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient  Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor   Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem { // it's just invoice but record paymnet in payment tables to make easier and allow partial payments
+  id          String   @id @default(uuid()) @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  description String   @db.VarChar(255)
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+model Payment { // contain payment or more
+  id        String        @id @default(uuid()) @db.Uuid
+  invoiceId String        @map("invoice_id") @db.Uuid
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  paidAt    DateTime      @default(now()) @map("paid_at") @db.Timestamptz
+  notes     String?       @db.Text
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model MedicalFile {
+  id            String            @id @default(uuid()) @db.Uuid
+  patientId     String            @map("patient_id") @db.Uuid
+  visitId       String?           @map("visit_id") @db.Uuid
+  sourceType    MedicalFileSource @default(manual) @map("source_type")
+  fileType      MedicalFileType   @map("file_type")
+  fileName      String            @map("file_name") @db.VarChar(255)
+  fileUrl       String            @map("file_url") @db.VarChar(1000)
+  fileSizeBytes Int?              @map("file_size_bytes")
+  uploadedAt    DateTime          @default(now()) @map("uploaded_at") @db.Timestamptz
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  visit   Visit?  @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  @@map("medical_files")
+}
+
+// record for best UX and professionalism of the system
+model AuditLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  tableName   String      @map("table_name") @db.VarChar(100)
+  recordId    String      @map("record_id") @db.Uuid
+  action      AuditAction
+  oldValue    Json?       @map("old_value")
+  newValue    Json?       @map("new_value")
+  performedBy String      @map("performed_by") @db.Uuid
+  performedAt DateTime    @default(now()) @map("performed_at") @db.Timestamptz
+
+  user User @relation(fields: [performedBy], references: [id], onDelete: Cascade)
+
+  @@index([tableName, recordId])
+  @@index([performedBy])
+  @@index([performedAt])
+  @@map("audit_logs")
+}
+
+// additional Models to make this system flexible
+
+
+model Review {
+  id         String     @id @default(uuid()) @db.Uuid
+  patientId  String?    @map("patient_id") @db.Uuid  
+  doctorId   String?    @map("doctor_id") @db.Uuid  
+  type       ReviewType @default(doctor)              
+  rating     Int        @db.SmallInt                                  
+  comment    String?    @db.Text
+  source     ReviewSource @default(website)         
+  isApproved Boolean    @default(false) @map("is_approved") 
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  patient Patient? @relation(fields: [patientId], references: [id])
+  doctor  Doctor?  @relation(fields: [doctorId], references: [id])
+
+  @@map("reviews")
+}
+
+enum ReviewType {
+  doctor
+  center
+}
+
+enum ReviewSource {
+  website
+  reception
+}
+
+model Center {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  basePrice   Decimal  @db.Decimal(10, 2) @map("base_price")
+  duration    Int      @db.SmallInt
+  
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  @@map("centers")
+}
+
+model Service {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(150)
+  description String?  @db.Text
+  basePrice   Decimal? @map("base_price") @db.Decimal(10, 2) @default(0)
+  durationMin Int      @default(30) @map("duration_min")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  doctorServices DoctorService[]
+  appointments   Appointment[]
+
+  @@map("services")
+}
+
+model DoctorService {
+  id        String  @id @default(uuid()) @db.Uuid
+  doctorId  String  @map("doctor_id") @db.Uuid
+  serviceId String  @map("service_id") @db.Uuid
+  price     Decimal @db.Decimal(10, 2)
+  isActive  Boolean @default(true) @map("is_active")
+
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@unique([doctorId, serviceId])
+  @@map("doctor_services")
+}
+
+model CommonQuestion {
+  id          String   @id @default(uuid()) @db.Uuid
+  question    String   @db.Text
+  answer      String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+
+  @@map("common_questions")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
