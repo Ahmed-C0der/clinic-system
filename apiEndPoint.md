@@ -1,6 +1,6 @@
-## API Documentation
+# API Documentation
 
-### Base URL
+## Base URL
 
 ```
 /api/v2
@@ -36,7 +36,7 @@ All list responses follow this envelope:
 
 ---
 
-### RBAC Permission Matrix
+## RBAC Permission Matrix
 
 | Role          | Patients     | Appointments  | Visits       | Prescriptions | Invoices / Payments | Reports      | Admin        |
 |---------------|-------------|---------------|--------------|---------------|---------------------|--------------|--------------|
@@ -47,10 +47,29 @@ All list responses follow this envelope:
 
 ---
 
-### 🔐 Auth
+## 🔐 Auth
 
 ```
 POST   /api/v2/auth/login                  Login — returns access_token + refresh_token
+Response 
+{
+  "access_token": "<token>",
+  "refresh_token": "<token>",
+  "expires_in": 3600,
+  "user": {
+    "id": "<id>",
+    "email": "[EMAIL_ADDRESS]",
+    "role": "doctor",
+    "is_active": true,
+    "profile": {
+      "id": "f11d0c62-d3e9-4f58-83f8-a6be95e7e67e",
+      "full_name": "Dr. Ahmed Ali",
+      "specialty": "Cardiology",
+      "phone": "+201012345678",
+      "avatar_url": null
+    }
+  }
+}
 POST   /api/v2/auth/logout                 Logout — invalidates current token
 POST   /api/v2/auth/refresh-token          Exchange refresh_token for a new access_token
 POST   /api/v2/auth/change-password        Change password (authenticated)
@@ -60,7 +79,7 @@ POST   /api/v2/auth/reset-password         Complete reset with token from email
 
 ---
 
-### 👤 Patients
+## 👤 Patients
 
 ```
 GET    /api/v2/patients                    List patients
@@ -75,7 +94,7 @@ POST   /api/v2/patients/:id/files          Upload a medical file (multipart/form
 GET    /api/v2/patients/:id/invoices       Patient invoices
 ```
 
-#### GET /api/v2/patients — query parameters
+### GET /api/v2/patients — query parameters
 
 | Parameter    | Type    | Description                                       |
 |-------------|---------|---------------------------------------------------|
@@ -87,7 +106,7 @@ GET    /api/v2/patients/:id/invoices       Patient invoices
 
 ---
 
-### 📅 Appointments
+## 📅 Appointments
 
 Removed `/appointments/today` and `/appointments/waiting` as dedicated routes (routing conflict with `/:id`). Use query parameters instead.
 
@@ -100,7 +119,7 @@ DELETE /api/v2/appointments/:id            Cancel appointment (sets status = can
 PATCH  /api/v2/appointments/:id/status     Update status only
 ```
 
-#### GET /api/v2/appointments — query parameters
+### GET /api/v2/appointments — query parameters
 
 | Parameter    | Type     | Description                                                                     |
 |-------------|----------|---------------------------------------------------------------------------------|
@@ -119,7 +138,7 @@ GET /api/v2/appointments?date=2025-08-01&status=waiting
 
 ---
 
-### 🏥 Visits
+## 🏥 Visits
 
 ```
 POST   /api/v2/visits                      Start a new visit (linked to an appointment)
@@ -132,7 +151,7 @@ PATCH  /api/v2/visits/:id/diagnosis        Update clinical notes and diagnosis
 
 ---
 
-### 💊 Prescriptions
+## 💊 Prescriptions
 
 ```
 POST   /api/v2/prescriptions                Create prescription (linked to a visit)
@@ -149,7 +168,7 @@ DELETE /api/v2/prescriptions/:id/items/:itemId   Remove medication item
 
 ---
 
-### 💰 Invoices & Payments
+## 💰 Invoices & Payments
 
 ```
 POST   /api/v2/invoices                    Create invoice (linked to a visit)
@@ -165,7 +184,7 @@ GET    /api/v2/invoices/:id/payments       List payments on this invoice
 
 ---
 
-### 👨‍⚕️ Doctors
+## 👨‍⚕️ Doctors
 
 ```
 GET    /api/v2/doctors                     List doctors            ← new in V2
@@ -182,7 +201,7 @@ POST   /api/v2/doctors/:id/time-blocks     Add a time block
 DELETE /api/v2/doctors/:id/time-blocks/:blockId   Remove a time block
 ```
 
-#### GET /api/v2/doctors — query parameters
+### GET /api/v2/doctors — query parameters
 
 | Parameter    | Type   | Description                           |
 |-------------|--------|---------------------------------------|
@@ -190,7 +209,7 @@ DELETE /api/v2/doctors/:id/time-blocks/:blockId   Remove a time block
 | `specialty` | string | Exact specialty filter                |
 | `available` | date   | Return only doctors with open slots on this date |
 
-#### GET /api/v2/doctors/:id/slots — query parameters
+### GET /api/v2/doctors/:id/slots — query parameters
 
 | Parameter | Type | Required | Description                                     |
 |-----------|------|----------|-------------------------------------------------|
@@ -204,7 +223,7 @@ Slot availability logic must exclude:
 
 ---
 
-### 📁 Medical Files
+## 📁 Medical Files
 
 ```
 POST   /api/v2/patients/:id/files          Upload file (multipart/form-data)
@@ -212,7 +231,7 @@ GET    /api/v2/patients/:id/files          List files
 DELETE /api/v2/patients/:id/files/:fileId  Delete file
 ```
 
-#### POST /api/v2/patients/:id/files — form fields
+### POST /api/v2/patients/:id/files — form fields
 
 | Field         | Type    | Required | Description                                           |
 |---------------|---------|----------|-------------------------------------------------------|
@@ -221,7 +240,7 @@ DELETE /api/v2/patients/:id/files/:fileId  Delete file
 | `visit_id`    | UUID    | No       | Associate with a specific visit                       |
 | `source_type` | string  | No       | `visit` / `onboarding` / `manual` (default: `manual`)|
 
-#### GET /api/v2/patients/:id/files — query parameters
+### GET /api/v2/patients/:id/files — query parameters
 
 | Parameter   | Type   | Description                          |
 |------------|--------|--------------------------------------|
@@ -232,7 +251,7 @@ DELETE /api/v2/patients/:id/files/:fileId  Delete file
 
 ---
 
-### 📊 Reports
+## 📊 Reports
 
 All report endpoints are restricted to `admin` and `receptionist` roles, except `GET /reports/doctor/:id/*` which is also accessible by the `doctor` for their own ID.
 
@@ -245,7 +264,7 @@ GET    /api/v2/reports/appointments        Appointment statistics (by status, ty
 GET    /api/v2/reports/doctor/:id/revenue  Per-doctor revenue breakdown  ← new in V2
 ```
 
-#### Common report query parameters
+### Common report query parameters
 
 | Parameter | Type | Description              |
 |-----------|------|--------------------------|
@@ -254,7 +273,7 @@ GET    /api/v2/reports/doctor/:id/revenue  Per-doctor revenue breakdown  ← new
 
 ---
 
-### 🔍 Audit Log
+## 🔍 Audit Log
 
 Restricted to `admin` only.
 
@@ -262,7 +281,7 @@ Restricted to `admin` only.
 GET    /api/v2/audit-logs                  Query audit log
 ```
 
-#### GET /api/v2/audit-logs — query parameters
+### GET /api/v2/audit-logs — query parameters
 
 | Parameter      | Type   | Description                              |
 |---------------|--------|------------------------------------------|

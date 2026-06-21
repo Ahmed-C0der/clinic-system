@@ -92,8 +92,8 @@ export async function saveTokenInCookies(token: string, name: string = 'access_t
   const isProd = process.env.NODE_ENV === 'production';
 
   cookiesStore.set(name, token, {
-    httpOnly: true,
-    secure: isProd, 
+    httpOnly: process.env.NODE_ENV === "development" ? false : true,
+    secure: isProd,
     sameSite: 'strict',
     maxAge: isRefreshToken ? 60 * 60 * 24 * 7 : 60 * 15,
     path: isRefreshToken ? '/api/auth/refresh-token' : '/',

@@ -8,7 +8,7 @@ import { join } from 'path';
 import { Gender, MedicalFileType, MedicalFileSource } from '../../../lib/generated/prisma/client';
 
 export class PatientsController {
-  private static async checkPatientAccess(authUser: any, patientId: string): Promise<boolean> {
+  private static async checkPatientAccess(authUser: any, patientId: string): Promise<boolean> { //  prevent pateint to acces another patient
     if (authUser.role === 'admin' || authUser.role === 'doctor' || authUser.role === 'receptionist') {
       return true;
     }

@@ -59,8 +59,8 @@ export class AuthController {
         performedBy: user.id
       });
       // set the cookies
-      saveTokenInCookies(access_token)
-      saveTokenInCookies(refresh_token , "refresh_token")
+      await saveTokenInCookies(access_token)
+      await saveTokenInCookies(refresh_token , "refresh_token")
       return NextResponse.json({
         user: {
           id: user.id,
@@ -129,8 +129,8 @@ export class AuthController {
         performedBy: newUser.id
       });
       // set the cookies
-      saveTokenInCookies(access_token)
-      saveTokenInCookies(refresh_token , "refresh_token")
+      await saveTokenInCookies(access_token)
+      await saveTokenInCookies(refresh_token , "refresh_token")
       return NextResponse.json({
         user: {
           id: newUser.id,
@@ -199,7 +199,7 @@ export class AuthController {
         role: user.role,
         name: user.name
       });
-      saveTokenInCookies(access_token)
+      await saveTokenInCookies(access_token)
       return NextResponse.json({ message:"access token have been updated successfully" });
     } catch (e) {
       if (e instanceof Error) {
@@ -292,7 +292,7 @@ export class AuthController {
   await sendResetPasswordEmail(user.email, token, user.name)
 
   return NextResponse.json({
-    message: 'لو الإيميل موجود هيوصلك رسالة'
+    success:true, message: 'تم إرسال رابط إعادة تعيين كلمة المرور'
   })
     } catch (e) {
       if (e instanceof Error) {
@@ -302,11 +302,11 @@ export class AuthController {
     }
   }
 
-  static async resetPassword(req: NextRequest) {
+  static async resetPassword(req: NextRequest,token:string) {
   try {
 
     const body = await req.json();
-    const { token, newPassword } = body;
+    const { newPassword } = body;
     const resetToken = await prisma.passwordResetToken.findUnique({
     where: { token },
     include: { user: true }
