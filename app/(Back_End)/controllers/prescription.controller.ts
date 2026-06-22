@@ -12,6 +12,21 @@ export class NotFoundError extends Error {
   }
 }
 
+
+/*
+//TODO :
+add logAction(params: {
+  tableName: string;
+  recordId: string;
+  action: AuditAction;
+  oldValue?: any;
+  newValue?: any;
+  performedBy: string;
+})
+to record changes
+
+*/
+
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
