@@ -19,7 +19,7 @@ export class Clinic {
         }
     }
 
-    static async PostTestimonials(req: NextRequest) {k
+    static async PostTestimonials(req: NextRequest) {
         const auth = await authenticate(req, ['patient']);
         if (auth instanceof NextResponse) return auth;
 

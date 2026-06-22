@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { PatientsController } from '../../controllers/patients.controller';
+import { Gender } from '@/lib/generated/prisma/enums';
 
 /**
  * @openapi
@@ -77,7 +78,13 @@ import { PatientsController } from '../../controllers/patients.controller';
  *         description: Forbidden - Insufficient permissions
  */
 export async function GET(req: NextRequest) {
-  return PatientsController.list(req);
+  const searchParams = req.nextUrl.searchParams
+  const search = searchParams.get('search') as string 
+  const gender = searchParams.get('gender') as Gender
+  const bloodType = searchParams.get('blood_type') as string
+  const createdFrom = searchParams.get('created_from') as string
+  const createdTo = searchParams.get('created_to') as string
+  return PatientsController.list(req, search, gender, bloodType, createdFrom, createdTo);
 }
 
 /**

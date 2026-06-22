@@ -3,10 +3,10 @@ import { PatientsController } from '../../../../controllers/patients.controller'
 
 /**
  * @openapi
- * /api/patients/{id}/visits:
+ * /api/patients/{id}/prescriptions:
  *   get:
- *     summary: List visits for a specific patient
- *     description: Retrieve a paginated list of medical visits for the specified patient. Patients can retrieve their own visits, while admins, doctors, and receptionists can retrieve visits for any patient.
+ *     summary: List prescriptions for a specific patient
+ *     description: Retrieve a paginated list of prescriptions written for the patient. Patients can retrieve their own prescriptions; admins, receptionists, and doctors can retrieve them for any patient.
  *     parameters:
  *       - in: path
  *         name: id
@@ -29,7 +29,7 @@ import { PatientsController } from '../../../../controllers/patients.controller'
  *         description: The number of items per page.
  *     responses:
  *       200:
- *         description: A paginated list of patient visits
+ *         description: A paginated list of prescriptions
  *         content:
  *           application/json:
  *             schema:
@@ -43,47 +43,54 @@ import { PatientsController } from '../../../../controllers/patients.controller'
  *                       id:
  *                         type: string
  *                         format: uuid
- *                       appointmentId:
+ *                       visitId:
  *                         type: string
  *                         format: uuid
- *                       chiefComplaint:
- *                         type: string
- *                         nullable: true
- *                       diagnosis:
- *                         type: string
- *                         nullable: true
  *                       notes:
  *                         type: string
  *                         nullable: true
- *                       weightKg:
- *                         type: number
- *                         nullable: true
- *                       heightCm:
- *                         type: number
- *                         nullable: true
- *                       bloodPressure:
- *                         type: string
- *                         nullable: true
- *                       temperatureC:
- *                         type: number
- *                         nullable: true
- *                       visitDate:
+ *                       createdAt:
  *                         type: string
  *                         format: date-time
- *                       appointment:
+ *                       items:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               format: uuid
+ *                             prescriptionId:
+ *                               type: string
+ *                               format: uuid
+ *                             medicineName:
+ *                               type: string
+ *                             dosage:
+ *                               type: string
+ *                               nullable: true
+ *                             frequency:
+ *                               type: string
+ *                               nullable: true
+ *                             duration:
+ *                               type: string
+ *                               nullable: true
+ *                             instructions:
+ *                               type: string
+ *                               nullable: true
+ *                       visit:
  *                         type: object
  *                         properties:
- *                           doctor:
+ *                           appointment:
  *                             type: object
  *                             properties:
- *                               user:
+ *                               doctor:
  *                                 type: object
  *                                 properties:
- *                                   name:
- *                                     type: string
- *                                   specialty:
- *                                     type: string
- *                                     nullable: true
+ *                                   user:
+ *                                     type: object
+ *                                     properties:
+ *                                       name:
+ *                                         type: string
  *                 meta:
  *                   type: object
  *                   properties:
@@ -100,7 +107,7 @@ import { PatientsController } from '../../../../controllers/patients.controller'
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  return PatientsController.listVisits(req, resolvedParams);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
+  const {patientId} = await params;
+  return PatientsController.listPrescriptions(req, patientId);
 }

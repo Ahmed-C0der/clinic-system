@@ -1,43 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../lib/prisma';
-import { authenticate } from '../../../lib/auth';
-import { logAction } from '../../../lib/audit';
-import { getPaginationParams } from '../../../lib/utils';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { prisma } from '@/lib/prisma';
+import { authenticate } from '@/lib/auth';
+import { logAction } from '@/lib/audit';
+import { getPaginationParams } from '@/lib/utils';
+
 import { Gender, MedicalFileType, MedicalFileSource } from '../../../lib/generated/prisma/client';
+import { AppointmentsController } from './appointments.controller';
+import { uploadMedicalFile } from '@/lib/cloudinary';
 
 export class PatientsController {
+
   private static async checkPatientAccess(authUser: any, patientId: string): Promise<boolean> { //  prevent pateint to acces another patient
     if (authUser.role === 'admin' || authUser.role === 'doctor' || authUser.role === 'receptionist') {
       return true;
     }
     if (authUser.role === 'patient') {
       const patient = await prisma.patient.findUnique({
-        where: { id: patientId }
+        where: { id: patientId } // patient id not userid
       });
       return !!(patient && patient.userId === authUser.id);
     }
     return false;
   }
 
-  static async list(req: NextRequest) {
+  static async list(req: NextRequest ,search:string/*search value will contain name of pateint or its code or his phone*/ , gender ?:Gender , bloodType?:string , createdFrom?:string , createdTo?:string) {
     try {
       const auth = await authenticate(req, ['admin', 'doctor', 'receptionist']);
       if (auth instanceof NextResponse) return auth;
 
       const { page, limit, skip } = getPaginationParams(req);
-      const { searchParams } = new URL(req.url);
 
-      const search = searchParams.get('search');
-      const gender = searchParams.get('gender') as Gender | null;
-      const bloodType = searchParams.get('blood_type');
-      const createdFrom = searchParams.get('created_from');
-      const createdTo = searchParams.get('created_to');
 
       // Build filters
       const where: any = { deletedAt: null };
+      /*
+      we ues it to put our info for  search
 
+      where:{
+      deletedAT:null
+        OR:[
+          { name: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search } },
+          { patientCode: { contains: search, mode: 'insensitive' } }
+        ],
+        gender?,
+        bloodType,
+        createdAt{
+        gte:
+        lte:
+
+        }
+      }
+      */
       if (search) {
         where.OR = [
           { name: { contains: search, mode: 'insensitive' } },
@@ -97,11 +111,11 @@ export class PatientsController {
         }
       });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async create(req: NextRequest) {
+  static async create(req: NextRequest) { // at first user have patient role but without any info about him , so we use it to create a real patient profile with his info
     try {
       const auth = await authenticate(req, ['admin', 'receptionist']);
       if (auth instanceof NextResponse) return auth;
@@ -162,16 +176,14 @@ export class PatientsController {
 
       return NextResponse.json(patient, { status: 201 });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async get(req: NextRequest, params: { id: string }) {
+  static async get(req: NextRequest, id: string) { // get patient by id including his info without his medical files
     try {
       const auth = await authenticate(req);
       if (auth instanceof NextResponse) return auth;
-
-      const { id } = params;
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -198,16 +210,14 @@ export class PatientsController {
 
       return NextResponse.json(patient);
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async update(req: NextRequest, params: { id: string }) {
+  static async update(req: NextRequest, id: string) {
     try {
       const auth = await authenticate(req, ['admin', 'receptionist', 'doctor', 'patient']);
       if (auth instanceof NextResponse) return auth;
-
-      const { id } = params;
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -258,16 +268,14 @@ export class PatientsController {
 
       return NextResponse.json(updated);
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async delete(req: NextRequest, params: { id: string }) {
+  static async delete(req: NextRequest, id:string) {
     try {
       const auth = await authenticate(req, ['admin', 'receptionist']);
       if (auth instanceof NextResponse) return auth;
-
-      const { id } = params;
       const patient = await prisma.patient.findUnique({
         where: { id }
       });
@@ -292,16 +300,14 @@ export class PatientsController {
 
       return NextResponse.json({ success: true, message: 'Patient soft deleted successfully' });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async listVisits(req: NextRequest, params: { id: string }) {
+  static async listVisits(req: NextRequest, id:string) { // get visits of specific patient
     try {
       const auth = await authenticate(req);
       if (auth instanceof NextResponse) return auth;
-
-      const { id } = params;
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -324,13 +330,17 @@ export class PatientsController {
           skip,
           take: limit,
           orderBy: { visitDate: 'desc' },
-          include: {
+          include: { // get doctor id , specially , pateint name 
             appointment: {
               include: {
                 doctor: {
-                  include: {
-                    user: {
-                      select: { name: true, specialty: true }
+                  select:{
+                    id:true,
+                    specialty:true,
+                    user:{
+                      select:{
+                        name:true
+                      }
                     }
                   }
                 }
@@ -350,16 +360,14 @@ export class PatientsController {
         }
       });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async listPrescriptions(req: NextRequest, params: { id: string }) {
+  static async listPrescriptions(req: NextRequest, id: string) { // get prescriptions of specific patient and include items and doctor name
     try {
-      const auth = await authenticate(req);
+      const auth = await authenticate(req, ["receptionist","admin","doctor","patient"]);
       if (auth instanceof NextResponse) return auth;
-
-      const { id } = params;
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -413,16 +421,16 @@ export class PatientsController {
         }
       });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async listInvoices(req: NextRequest, params: { id: string }) {
+  static async listInvoices(req: NextRequest, params: { patientId: string }) { // get all invoices of specific patient with items (more detail about each invoice like price qty total) and patient name 
     try {
       const auth = await authenticate(req, ['admin', 'receptionist', 'patient', 'doctor']);
       if (auth instanceof NextResponse) return auth;
 
-      const { id } = params;
+      const { patientId:id } = params;
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -440,7 +448,7 @@ export class PatientsController {
           take: limit,
           orderBy: { createdAt: 'desc' },
           include: {
-            items: true,
+            items: true, // price, qty, total, 
             doctor: {
               include: {
                 user: { select: { name: true } }
@@ -460,11 +468,11 @@ export class PatientsController {
         }
       });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async listFiles(req: NextRequest, params: { id: string }) {
+  static async listFiles(req: NextRequest, params: { patientId: string }) { // list all medical files of specific patient with visit and doctor name  
     try {
       const auth = await authenticate(req);
       if (auth instanceof NextResponse) return auth;
@@ -517,16 +525,16 @@ export class PatientsController {
         }
       });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async uploadFile(req: NextRequest, params: { id: string }) {
+  static async uploadFile(req: NextRequest, params: { patientId: string }) { // 
     try {
       const auth = await authenticate(req, ['admin', 'receptionist', 'doctor']);
       if (auth instanceof NextResponse) return auth;
 
-      const { id: patientId } = params;
+      const { patientId } = params;
 
       // Parse multipart form data
       const formData = await req.formData();
@@ -539,6 +547,16 @@ export class PatientsController {
         return NextResponse.json({ error: 'File and file_type are required' }, { status: 400 });
       }
 
+      // const allowedFileExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'tiff', 'bmp', 'webp', 'heic', 'heif'];
+      // const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+      // if (!allowedFileExtensions.includes(fileExtension)) {
+      //   return NextResponse.json({ error: 'Invalid file extension' }, { status: 400 });
+      // }
+      // const allowedTypes = ['report', 'image', 'document', 'other'];
+      // if (!allowedTypes.includes(fileType)) {
+      //   return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
+      // }
+
       // Check file size (max 20MB)
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
@@ -548,16 +566,12 @@ export class PatientsController {
       }
 
       // Save file locally in public/uploads
-      const uploadDir = join(process.cwd(), 'public', 'uploads');
-      try {
-        await mkdir(uploadDir, { recursive: true });
-      } catch (err) {}
-
-      const uniqueName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-      const filePath = join(uploadDir, uniqueName);
-      await writeFile(filePath, buffer);
-
-      const fileUrl = `/uploads/${uniqueName}`;
+      
+      const result = await uploadMedicalFile(
+        buffer,
+        file.name,
+        patientId
+      ) as any
 
       const medicalFile = await prisma.medicalFile.create({
         data: {
@@ -566,7 +580,7 @@ export class PatientsController {
           sourceType,
           fileType,
           fileName: file.name,
-          fileUrl,
+          fileUrl:      result.secure_url,
           fileSizeBytes: buffer.length
         }
       });
@@ -581,11 +595,11 @@ export class PatientsController {
 
       return NextResponse.json(medicalFile, { status: 201 });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 
-  static async deleteFile(req: NextRequest, params: { id: string; fileId: string }) {
+  static async deleteFile(req: NextRequest, params: { patientId: string; fileId: string }) {
     try {
       const auth = await authenticate(req, ['admin', 'receptionist', 'doctor']);
       if (auth instanceof NextResponse) return auth;
@@ -614,7 +628,7 @@ export class PatientsController {
 
       return NextResponse.json({ success: true, message: 'File deleted successfully' });
     } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+      return AppointmentsController.catchError(e)
     }
   }
 }

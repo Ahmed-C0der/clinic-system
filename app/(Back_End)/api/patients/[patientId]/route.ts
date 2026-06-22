@@ -29,9 +29,9 @@ import { PatientsController } from '../../../controllers/patients.controller';
  *       404:
  *         description: Patient not found
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  return PatientsController.get(req, resolvedParams);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
+  const {patientId} = await params;
+  return PatientsController.get(req, patientId);
 }
 
 /**
@@ -87,9 +87,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
  *       404:
  *         description: Patient not found
  */
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  return PatientsController.update(req, resolvedParams);
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
+  const {patientId} = await params;;
+  return PatientsController.update(req, patientId);
 }
 
 /**
@@ -127,7 +127,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
  *       404:
  *         description: Patient not found
  */
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  return PatientsController.delete(req, resolvedParams);
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
+  const {patientId} = await params;
+  return PatientsController.delete(req, patientId);
 }
