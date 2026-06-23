@@ -7,7 +7,58 @@ import { AppointmentsController } from './appointments.controller';
 
 
 export class visitsController {
+    static async listAllVisits(request: NextRequest) {
+        try {
+            const auth = await authenticate(request, [Role.admin,Role.receptionist]);
+            if (auth instanceof NextResponse) return auth;
+            const { page, limit, skip } = getPaginationParams(request);
+            const [total, data] = await Promise.all([
+                prisma.visit.count({ where: { deletedAt: null } }),
+                prisma.visit.findMany({ // get all visits for a doctor with the ability to filter by date and status including just basic info like pateint name , code , servicename , doctor name
+                    where: { deletedAt: null },
+                    skip,
+                    take: limit,
+                    orderBy: { visitDate: 'desc' },
+                    include: { // get just basic info from included tables
+                        appointment: {
+                            include: {
+                                patient: {
+                                    select: { name: true, patientCode: true, id: true }
+                                },
+                                service: {
+                                    select: { name: true, id: true }
+                                }
+                                , doctor: {
+                                    select: {
+                                        id: true,
+                                        user: {
+                                            select: {
+                                                name: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            ])
+            const totalPages = Math.ceil(total / limit);
+            return NextResponse.json({
+                data,
+                meta: {
+                    page,
+                    limit,
+                    total,
+                    total_pages: totalPages
+                }
+            });
+        } catch (error: any) {
+            return AppointmentsController.catchError(error)
+        }
+    }
     // get all visits for a doctor with the ability to filter by date and status 
+
     static async list(request: NextRequest, doctorId: string, status?: AppointmentStatus, from?: Date | string, to?: Date | string) {
         try {
             // fisrt authanticate user to get sure his role not patient
