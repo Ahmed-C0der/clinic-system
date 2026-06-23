@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { authenticate } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { Role } from '@/lib/generated/prisma/enums';
+import { getPaginationParams } from '@/lib/utils';
 
 // ============================================================
 // Errors — throw these from the service, catch them once in
@@ -69,14 +73,56 @@ export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export class PrescriptionService {
   /** Consistent include shape used across reads — keeps item ordering stable for the UI. */
   private static readonly withItems = {
-    items: { orderBy: { id: 'asc' as const } },
+    items: { orderBy: { medicineName: 'asc' as const } },
   };
 
+  //----------------list----------------
+
+
+  static async list(req: NextRequest) {
+    const auth = authenticate(req, [Role.admin])
+    if (auth instanceof NextResponse) return auth
+    const { page, limit, skip } = getPaginationParams(req)
+
+    const [total, prescriptions] = await Promise.all([
+      prisma.prescription.count({
+        where: { deletedAt: null }
+      })
+      , prisma.prescription.findMany({
+        include: this.withItems,
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'desc' as const },
+        take: limit,
+        skip
+      })
+    ])
+
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return NextResponse.json({
+      success: true,
+      message: 'Prescriptions fetched successfully',
+      data: prescriptions,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+
+      }
+    });
+
+  }
   // ---------------- Create ----------------
 
-  static async create(input: unknown) {
+  static async create(req: NextRequest,input: unknown) {
     const data = createPrescriptionSchema.parse(input);
-
+    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    if (auth instanceof NextResponse) return auth
     const visit = await prisma.visit.findFirst({
       where: { id: data.visitId, deletedAt: null },
       select: { id: true },
@@ -95,7 +141,9 @@ export class PrescriptionService {
 
   // ---------------- Read ----------------
 
-  static async getById(id: string) {
+  static async getById( req: NextRequest,id: string,authUsers:string[]) {
+    const auth = authenticate(req, authUsers.length>0 ? authUsers : [Role.admin,Role.doctor, Role.receptionist])
+    if (auth instanceof NextResponse) return auth
     const prescription = await prisma.prescription.findFirst({
       where: { id, deletedAt: null },
       include: this.withItems,
@@ -106,10 +154,11 @@ export class PrescriptionService {
 
   // ---------------- Update (notes only — items are managed separately) ----------------
 
-  static async updateNotes(id: string, input: unknown) {
+  static async updateNotes(req: NextRequest,id: string, input: unknown,) {
     const { notes } = updateNotesSchema.parse(input);
     await this.assertExists(id);
-
+    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    if (auth instanceof NextResponse) return auth
     return prisma.prescription.update({
       where: { id },
       data: { notes },
@@ -119,8 +168,8 @@ export class PrescriptionService {
 
   // ---------------- PDF export ----------------
 
-  static async generatePdfBuffer(id: string): Promise<Buffer> {
-    const prescription = await this.getById(id);
+  static async generatePdfBuffer( req: NextRequest, id: string): Promise<Buffer> {
+    const prescription = await this.getById(req,id,[Role.admin,Role.doctor, Role.receptionist,Role.patient]);
     // Lazy import keeps the heavy PDF renderer out of hot paths that
     // never touch the export endpoint.
     const { renderPrescriptionPdf } = await import('@/lib/pdf/prescription-pdf');

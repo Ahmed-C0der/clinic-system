@@ -11,7 +11,7 @@ export async function uploadMedicalFile(
   buffer: Buffer,
   fileName: string,
   patientId: string
-) {
+) :Promise<{secure_url: string, bytes: number}> {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
       {
@@ -22,7 +22,7 @@ export async function uploadMedicalFile(
       },
       (error, result) => {
         if (error) reject(error)
-        else resolve(result)
+        else resolve(result as {secure_url: string, bytes: number})
       }
     ).end(buffer)
   })
