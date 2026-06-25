@@ -414,8 +414,6 @@ All text minimum 28px. Colors: #1A6B5A bg, #2DBFA0 accent, white text. Font: Not
 5. أهم 3 صفحات تبدأ بيهم: /book ثم /reception/dashboard ثم /doctor/visits/[id]
 ```
 
-<!-- TODO : generate these pages as prompt  -->
-
 /contact
 /reception/patients
 /reception/queue

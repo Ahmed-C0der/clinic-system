@@ -270,7 +270,7 @@ export const PrescriptionTemplate = ({ patient, doctor, visit, items }: Props) =
         <View style={styles.header}>
           <View>
             <Text style={styles.clinicName}>وصفة طبية</Text>
-            <Text style={styles.clinicSub}>نظام إدارة العيادة</Text>
+            <Text style={styles.clinicSub}>نظام إدارة العيادة</Text>z
           </View>
           <View style={styles.headerLeft}>
             <Text style={styles.prescriptionNo}>

@@ -4,11 +4,9 @@ import { authenticate } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { Role } from '@/lib/generated/prisma/enums';
 import { getPaginationParams } from '@/lib/utils';
+import { generatePrescriptionPDF } from '@/app/services/medicalFile.service';
 
-// ============================================================
-// Errors — throw these from the service, catch them once in
-// your route handlers to map to HTTP status codes (404/422).
-// ============================================================
+
 export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -17,19 +15,7 @@ export class NotFoundError extends Error {
 }
 
 
-/*
-//TODO :
-add logAction(params: {
-  tableName: string;
-  recordId: string;
-  action: AuditAction;
-  oldValue?: any;
-  newValue?: any;
-  performedBy: string;
-})
-to record changes
 
-*/
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -80,7 +66,7 @@ export class PrescriptionService {
 
 
   static async list(req: NextRequest) {
-    const auth = authenticate(req, [Role.admin])
+    const auth = authenticate(req, [Role.admin , Role.doctor , Role.receptionist , Role.patient])
     if (auth instanceof NextResponse) return auth
     const { page, limit, skip } = getPaginationParams(req)
 
@@ -120,9 +106,9 @@ export class PrescriptionService {
   // ---------------- Create ----------------
 
   static async create(req: NextRequest,input: unknown) {
-    const data = createPrescriptionSchema.parse(input);
     const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
+    const data = createPrescriptionSchema.parse(input);
     const visit = await prisma.visit.findFirst({
       where: { id: data.visitId, deletedAt: null },
       select: { id: true },
@@ -168,17 +154,21 @@ export class PrescriptionService {
 
   // ---------------- PDF export ----------------
 
-  static async generatePdfBuffer( req: NextRequest, id: string): Promise<Buffer> {
-    const prescription = await this.getById(req,id,[Role.admin,Role.doctor, Role.receptionist,Role.patient]);
-    // Lazy import keeps the heavy PDF renderer out of hot paths that
-    // never touch the export endpoint.
-    const { renderPrescriptionPdf } = await import('@/lib/pdf/prescription-pdf');
-    return renderPrescriptionPdf(prescription);
+  static async generatePdf( req: NextRequest, id: string) {
+    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist,Role.patient])
+    if (auth instanceof NextResponse) return auth
+    const medicalFile = await generatePrescriptionPDF(id);
+    return NextResponse.json({
+      success: true,
+      fileUrl: medicalFile.fileUrl,   
+    });
   }
 
   // ---------------- Item sub-resource ----------------
 
-  static async addItem(prescriptionId: string, input: unknown) {
+  static async addItem(req: NextRequest,prescriptionId: string, input: unknown) {
+    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    if (auth instanceof NextResponse) return auth
     const data = prescriptionItemSchema.parse(input);
     await this.assertExists(prescriptionId);
 
@@ -187,7 +177,9 @@ export class PrescriptionService {
     });
   }
 
-  static async updateItem(prescriptionId: string, itemId: string, input: unknown) {
+  static async updateItem(req: NextRequest,prescriptionId: string, itemId: string, input: unknown) {
+    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    if (auth instanceof NextResponse) return auth
     const data = updateItemSchema.parse(input);
     if (Object.keys(data).length === 0) {
       throw new ValidationError('No fields provided to update');
@@ -200,7 +192,9 @@ export class PrescriptionService {
     });
   }
 
-  static async removeItem(prescriptionId: string, itemId: string) {
+  static async removeItem(req:NextRequest,prescriptionId: string, itemId: string) {
+    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    if (auth instanceof NextResponse) return auth
     await this.assertItemBelongsTo(prescriptionId, itemId);
 
     // Business rule: a prescription must always have at least one item.

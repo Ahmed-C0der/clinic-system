@@ -1,7 +1,6 @@
 import { prisma } from './prisma';
 
 export type AuditAction = 'create' | 'update' | 'delete';
-
 export async function logAction(params: {
   tableName: string;
   recordId: string;

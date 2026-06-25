@@ -90,10 +90,12 @@ model User {
 model Doctor {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @map("user_id") @db.Uuid
-  specialty       String?  @db.VarChar(100)
+
   licenseNumber   String?  @unique @map("license_number") @db.VarChar(100)
+  specialty       String?  @db.VarChar(100)
   bio             String?  @db.Text
   consultationFee Decimal? @map("consultation_fee") @db.Decimal(10, 2)
+  slotDuration    Int?     @map("slot_duration") @db.SmallInt
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   schedules       DoctorSchedule[]
@@ -108,6 +110,7 @@ model Doctor {
 model DoctorSchedule {
   id        String   @id @default(uuid()) @db.Uuid
   doctorId  String   @map("doctor_id") @db.Uuid
+
   dayOfWeek Int      @map("day_of_week") @db.SmallInt
   startTime DateTime @map("start_time") @db.Time
   endTime   DateTime @map("end_time") @db.Time

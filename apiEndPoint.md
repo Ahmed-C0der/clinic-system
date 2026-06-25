@@ -189,15 +189,18 @@ GET    /api/v2/invoices/:id/payments       List payments on this invoice
 ```
 GET    /api/v2/doctors                     List doctors            ← new in V2
 GET    /api/v2/doctors/:id                 Get doctor profile
-PUT    /api/v2/doctors/:id                 Update doctor profile (admin only)
+PUT    /api/v2/doctors/:id                 Update doctor profile (admin  or doctor only)
 
-GET    /api/v2/doctors/:id/schedule        Get working schedule (doctor_schedules rows)
+GET    /api/v2/doctors/:id/schedule        there is no need for authanticate here Get working schedule (doctor_schedules rows)
 PUT    /api/v2/doctors/:id/schedule        Replace full weekly schedule
+
 PATCH  /api/v2/doctors/:id/schedule/:dayId Update a single day's hours
 
 GET    /api/v2/doctors/:id/slots           Available booking slots
+
 GET    /api/v2/doctors/:id/time-blocks     List time blocks (vacation / leave)
 POST   /api/v2/doctors/:id/time-blocks     Add a time block
+
 DELETE /api/v2/doctors/:id/time-blocks/:blockId   Remove a time block
 ```
 
