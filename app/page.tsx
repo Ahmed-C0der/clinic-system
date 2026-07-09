@@ -1,5 +1,4 @@
-"use client";
-import { useEffect, useState } from "react";
+import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -14,14 +13,11 @@ import {
 import { ArrowLeft, Heart, Layers, ShieldCheck, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import TopServices from "./MyComponents/topServices";
+import TestimonialsCard from "./MyComponents/TestimonialsCard";
+import  Loading  from "./MyComponents/Loding";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Testimonial {
-  name: string;
-  rating: number;
-  comment: string;
-  service: string;
-}
+
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -36,9 +32,8 @@ function StatItem({
 }) {
   return (
     <div
-      className={`space-y-2 p-4 ${
-        bordered ? "border-y sm:border-y-0 sm:border-x border-emerald-700/50" : ""
-      }`}
+      className={`space-y-2 p-4 ${bordered ? "border-y sm:border-y-0 sm:border-x border-emerald-700/50" : ""
+        }`}
     >
       <div className="text-4xl md:text-5xl font-bold font-heading text-[#2DBFA0]">
         {value}
@@ -48,31 +43,6 @@ function StatItem({
   );
 }
 
-function ServiceCard({
-  icon,
-  title,
-  description,
-  iconBg,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  iconBg: string;
-}) {
-  return (
-    <Card className="hover:shadow-md transition-all text-right border-gray-100">
-      <CardContent className="p-6 space-y-4">
-        <div
-          className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center text-[#1A6B5A]`}
-        >
-          {icon}
-        </div>
-        <h3 className="text-lg font-bold font-heading text-gray-800">{title}</h3>
-        <p className="text-gray-500 font-body text-sm leading-relaxed">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
 
 function StepItem({
   number,
@@ -100,90 +70,11 @@ function StepItem({
   );
 }
 
-function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
-  return (
-    <Card className="hover:shadow-md transition-all border-gray-100 text-right">
-      <CardContent className="p-6 space-y-4">
-        <div className="flex items-center gap-3 ">
-          <Avatar className="w-12 h-12 bg-emerald-100">
-            <AvatarFallback className="bg-emerald-100 text-emerald-800 font-heading text-xs font-bold">
-              {testimonial.name[0]}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h4 className="text-sm font-bold text-gray-800">{testimonial.name}</h4>
-            <p className="text-[10px] text-gray-400">مريض تمت معالجته بالمركز</p>
-          </div>
-        </div>
-        <Separator className="bg-gray-50" />
-        <div className="flex justify-between items-center">
-          <Badge
-            variant="secondary"
-            className="bg-emerald-50 text-[#1A6B5A] font-tajawal text-xs border-0"
-          >
-            {testimonial.service}
-          </Badge>
-          <div className="flex text-amber-400">
-            {Array.from({ length: testimonial.rating }).map((_, i) => (
-              <Star key={i} size={14} fill="currentColor" />
-            ))}
-          </div>
-        </div>
-
-        <p className="text-gray-600 text-sm italic font-body leading-relaxed">
-          &ldquo;{testimonial.comment}&rdquo;
-        </p>
 
 
+export default function Homepage() {
 
-      </CardContent>
-    </Card>
-  );
-}
 
-// ─── Main Component ────────────────────────────────────────────────────────────
-
-export default function HomepageView() {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([
-    {
-      name: "أحمد العتيبي",
-      rating: 5,
-      comment:
-        "تعامل راقٍ جداً واحترافية من الطبيب وطاقم العمل. العيادة مجهزة بأحدث التقنيات الطبية.",
-      service: "استشارة قلبية",
-    },
-    {
-      name: "فاطمة محمد",
-      rating: 4,
-      comment:
-        "أفضل عيادة قمت بزيارتها. نظام المواعيد دقيق جداً ولا يوجد وقت انتظار طويل.",
-      service: "فحص دوري",
-    },
-    {
-      name: "خالد الحربي",
-      rating: 5,
-      comment:
-        "شرح لي الطبيب حالتي بالتفصيل ووصف لي العلاج المناسب. ممتن جداً للرعاية الطبية المتميزة.",
-      service: "متابعة السكري",
-    },
-  ]);
-
-  useEffect(() => {
-    const getTestimonials = async () => {
-      try {
-        const res = await fetch("/api/clinic/views");
-        if (!res.ok) {
-          console.error("Failed to fetch testimonials");
-          return;
-        }
-        const data = await res.json();
-        if (data.length > 0) setTestimonials(data);
-      } catch (error) {
-        console.error("Failed to fetch testimonials", error);
-      }
-    };
-    getTestimonials();
-  }, []);
 
   return (
     <div className="animate-fade-in text-[#1C1C1E] bg-[#F9FAFB] min-h-screen">
@@ -236,10 +127,11 @@ export default function HomepageView() {
           <div className="flex justify-center order-1 md:order-2">
             <div className="relative">
               <div className="absolute inset-x-0 -bottom-6 -left-6 w-full h-full bg-[#2DBFA0]/10 rounded-2xl -z-10" />
+
               <Card className="p-3 max-w-sm border-emerald-50 shadow-lg">
                 <CardContent className="p-0">
                   <Image
-                    src="/doctor.png"
+                    src="/doctor-1.jpg"
                     alt="الطبيب المعالج"
                     referrerPolicy="no-referrer"
                     className="rounded-xl w-full h-80 object-cover"
@@ -285,27 +177,9 @@ export default function HomepageView() {
             مستويات الجودة
           </p>
         </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          <ServiceCard
-            icon={<Heart size={24} />}
-            title="الاستشارات الطبية المتخصصة"
-            description="تشخيص دقيق واستشارات قلبية وباطنية مبكرة بأساليب متطورة لضمان أفضل مسار علاجي بأمان وسرعة."
-            iconBg="bg-emerald-50"
-          />
-          <ServiceCard
-            icon={<Layers size={24} />}
-            title="الفحوصات الطبية والمخبرية"
-            description="تحاليل دم شاملة، تخطيط القلب ومراقبة ضغط الدم والسكري بأحدث أجهزة التحليل الذكي المعتمدة عالمياً."
-            iconBg="bg-[#2DBFA0]/15"
-          />
-          <ServiceCard
-            icon={<ShieldCheck size={24} />}
-            title="برامج الطب الوقائي والمستمر"
-            description="خطط وقائية متكاملة مصممة خصيصاً لكل فرد للوقاية من الأمراض المزمنة قبل حدوثها مع متابعة دورية مستمرة."
-            iconBg="bg-teal-50"
-          />
-        </div>
+        <Suspense fallback={<Loading />}>
+          <TopServices />
+        </Suspense>
 
         <div className="text-center mt-8">
           <Button
@@ -382,12 +256,9 @@ export default function HomepageView() {
             الموثقة
           </p>
         </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((t, idx) => (
-            <TestimonialCard key={idx} testimonial={t} />
-          ))}
-        </div>
+        <Suspense fallback={<Loading />}>
+          <TestimonialsCard />
+        </Suspense>
       </section>
 
       {/* ── Footer ── */}

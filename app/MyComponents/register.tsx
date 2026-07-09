@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
-import registerFormAction from "../(Front_End)/action/register"
 
 interface RegisterState {
   error?: string
@@ -246,7 +245,7 @@ function RegisterPage() {
             <p className="text-center text-sm text-muted-foreground">
               لديك حساب بالفعل؟{" "}
               <Link
-                href="/auth/login"
+                href="/login"
                 className="font-semibold text-[#2DBFA0] hover:underline"
               >
                 تسجيل الدخول
@@ -260,3 +259,39 @@ function RegisterPage() {
 }
 
 export default RegisterPage
+
+
+
+async function registerFormAction(prevState: any, fomrData: FormData) {
+    const email = fomrData.get("email") as string
+    const name = fomrData.get("name") as string
+    const password = fomrData.get("password") as string
+    if (!email || !password || !name) {
+        return { message: "email and password are required" }
+
+    }
+    try {
+        const response = await fetch("api/auth/register", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                email,
+                password,
+                name
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            return { message: "error", error: data.error }
+        }
+        return { message: "user is logged in successfully", user: data.user }
+    } catch (error) {
+        if (error instanceof Error) {
+            return { message: "error", error: error.message }
+        }
+        return { message: "error", error }
+    }
+
+}

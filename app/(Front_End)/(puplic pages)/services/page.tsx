@@ -31,6 +31,10 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import axios from "axios";
+import { useGSAP } from "@gsap/react";
+import { CommonQuestion, DoctorService, Service } from "@/lib/generated/prisma/client";
+import Image from "next/image";
+// TODO: connect this services to prisma database and connect link(احجز هذه الخدمة) to a /doctors?service=
 
 gsap.registerPlugin(ScrollTrigger);
 const pricingRows = [
@@ -61,22 +65,34 @@ const pricingRows = [
 // ── component ─────────────────────────────────────────────────────────────────
 export default function ServicesPage() {
 
+  type DoctorServiceWithDetails = DoctorService & {
+    service: Pick<Service, 'id' | 'name' | 'description' | 'durationMin'>;
+  };
+  const [faqs, setFaqs] = useState<CommonQuestion[]>([])
 
-const [faqs,setFaqs]=useState([])
+  const [services, setServices] = useState<{
+    id: string,
+    name: string,
+    description: string,
+    basePrice: number,
+    durationMin: number,
+    priceRange: {
+      min: number,
+      max: number
+    }
+  }[]>([]);
 
-  const [services, setServices] = useState([]);
 
 
-
-useEffect(() => {
-  async function getInfo() {
-  const response = await axios.get("/api/clinic/topServices");
-  setServices(response.data);
-  const response2 = await axios.get("/api/clinic/CommonQuestion");
-  setFaqs(response2.data);
-}
-  getInfo();
-}, []);
+  useEffect(() => {
+    async function getInfo() {
+      const response = await axios.get("/api/clinic/topServices");
+      setServices(response.data);
+      const response2 = await axios.get("/api/clinic/CommonQuestion");
+      setFaqs(response2.data);
+    }
+    getInfo();
+  }, []);
 
 
 
@@ -89,69 +105,67 @@ useEffect(() => {
   const faqRef = useRef<HTMLElement>(null);
   const ctaRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Header fade down
-      gsap.from(headerRef.current, {
-        opacity: 0,
-        y: -30,
-        duration: 0.8,
-        ease: "power3.out",
-      });
-
-      // Service cards stagger on scroll
-      gsap.from(".service-card", {
-        scrollTrigger: {
-          trigger: gridRef.current,
-          start: "top 80%",
-        },
-        opacity: 0,
-        y: 40,
-        stagger: 0.1,
-        duration: 0.6,
-        ease: "power2.out",
-      });
-
-      // Pricing table rows slide in from right (RTL)
-      gsap.from(".pricing-row", {
-        scrollTrigger: {
-          trigger: pricingRef.current,
-          start: "top 85%",
-        },
-        opacity: 0,
-        x: 30,
-        stagger: 0.1,
-        duration: 0.55,
-        ease: "power2.out",
-      });
-
-      // FAQ section fade up
-      gsap.from(faqRef.current, {
-        scrollTrigger: {
-          trigger: faqRef.current,
-          start: "top 85%",
-        },
-        opacity: 0,
-        y: 30,
-        duration: 0.7,
-        ease: "power2.out",
-      });
-
-      // CTA fade up
-      gsap.from(ctaRef.current, {
-        scrollTrigger: {
-          trigger: ctaRef.current,
-          start: "top 85%",
-        },
-        opacity: 0,
-        y: 30,
-        duration: 0.7,
-        ease: "power2.out",
-      });
+  useGSAP(() => {
+    // Header fade down
+    gsap.from(headerRef.current, {
+      opacity: 0,
+      y: -30,
+      duration: 0.8,
+      ease: "power3.out",
     });
 
-    return () => ctx.revert();
+    // Service cards stagger on scroll
+    gsap.from(".service-card", {
+      scrollTrigger: {
+        trigger: gridRef.current,
+        start: "top 80%",
+      },
+      opacity: 0,
+      y: 40,
+      stagger: 0.1,
+      duration: 0.6,
+      ease: "power2.out",
+    });
+
+    // Pricing table rows slide in from right (RTL)
+    gsap.from(".pricing-row", {
+      scrollTrigger: {
+        trigger: pricingRef.current,
+        start: "top 85%",
+      },
+      opacity: 0,
+      x: 30,
+      stagger: 0.1,
+      duration: 0.55,
+      ease: "power2.out",
+    });
+
+    // FAQ section fade up
+    gsap.from(faqRef.current, {
+      scrollTrigger: {
+        trigger: faqRef.current,
+        start: "top 85%",
+      },
+      opacity: 0,
+      y: 30,
+      duration: 0.7,
+      ease: "power2.out",
+    });
+
+    // CTA fade up
+    gsap.from(ctaRef.current, {
+      scrollTrigger: {
+        trigger: ctaRef.current,
+        start: "top 85%",
+      },
+      opacity: 0,
+      y: 30,
+      duration: 0.7,
+      ease: "power2.out",
+    });
   }, []);
+
+
 
   return (
     <div className="text-[#1C1C1E] bg-[#F9FAFB] min-h-screen" dir="rtl">
@@ -182,7 +196,7 @@ useEffect(() => {
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#1A6B5A] flex items-center justify-center">
                     {/* {item.icon} */}
 
-                    <Image src={"/logo.png"} alt={item.} width={200} height={200} />
+                    <Image src={"/logo.png"} alt={item.name} width={200} height={200} />
                     {/* add an icon instead */}
                   </div>
                   <div className="flex justify-between items-center gap-2">
@@ -190,14 +204,14 @@ useEffect(() => {
                       variant="secondary"
                       className="bg-emerald-50 text-[#1A6B5A] hover:bg-emerald-50 font-tajawal text-xs shrink-0"
                     >
-                      {item.price}
+                      {item.basePrice}
                     </Badge>
                     <h3 className="font-heading font-bold text-sm text-gray-800 text-right">
-                      {item.title}
+                      {item.name}
                     </h3>
                   </div>
                   <p className="text-xs text-gray-500 font-body leading-relaxed">
-                    {item.text}
+                    {item.description}
                   </p>
                 </div>
 
@@ -281,10 +295,10 @@ useEffect(() => {
                 className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 overflow-hidden"
               >
                 <AccordionTrigger className="text-right font-semibold text-xs text-gray-800 font-heading hover:no-underline py-4">
-                  {faq.q}
+                  {faq.question}
                 </AccordionTrigger>
                 <AccordionContent className="text-xs text-gray-500 font-body leading-relaxed pb-4">
-                  {faq.a}
+                  {faq.answer}
                 </AccordionContent>
               </AccordionItem>
             ))}

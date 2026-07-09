@@ -22,14 +22,20 @@ import { Input } from "@/components/ui/input"
 // import loginFormAction from '../(Front_End)/action/login'
 import { toast } from "sonner"
 import Image from 'next/image'
-type LoginState = {
-    user: { email: string, password: string, name: string }
-    error?: string
+interface LoginState {
+    message: string;
+    error?: any;
+    user?: {
+        email: string;
+        password?: string;
+        name?: string;
+    };
 }
 
 const initialState: LoginState = {
+    message: "",
     user: { email: "", password: "", name: "" },
-}
+};
 
 function Login() {
     const [state, formAction, isPending] = useActionState(
@@ -58,7 +64,7 @@ function Login() {
                     <CardContent>
                         <form id="login-form" action={formAction}>
                             <FieldGroup>
-                                <Field data-invalid={!!state?.error}>
+                                {/* <Field data-invalid={!!state?.error}>
                                     <FieldLabel htmlFor="login-name">
                                         الاسم
                                     </FieldLabel>
@@ -70,7 +76,7 @@ function Login() {
                                         aria-invalid={!!state?.error}
                                         required
                                     />
-                                </Field>
+                                </Field> */}
                                 <Field data-invalid={!!state?.error}>
                                     <FieldLabel htmlFor="login-email">
                                         البريد الإلكتروني
@@ -126,7 +132,7 @@ function Login() {
             <Image src={"/logo.png"} alt="Logo" width={100} height={100} className="mb-4" />
             <h1 className="text-3xl font-bold mb-4">عيادتي</h1>
             <div className="relative w-64 h-64 mb-6">
-                <Image src={"/doctor"} alt="Doctor" fill className="rounded-full object-cover border-4 border-white/20" />
+                <Image src={"/doctor_male.png"} alt="Doctor" fill className="rounded-full object-cover border-4 border-white/20" />
             </div>
             <p className="text-lg">رعاية طبية تليق بك</p>
             <p className="text-sm opacity-80 mt-2">نحن هنا لنقدم لك أفضل تجربة صحية من خلال تكنولوجيا حديثة وكادر طبي متميز يهتم بأدق التفاصيل.</p>
@@ -140,9 +146,8 @@ export default Login
 
 async function loginFormAction(prevState: any, fomrData: FormData) {
     const email = fomrData.get("email") as string
-    const name = fomrData.get("name") as string
     const password = fomrData.get("password") as string
-    if (!email || !password || !name) {
+    if (!email || !password ) {
         return { message: "email and password are required" }
 
     }
@@ -155,7 +160,6 @@ async function loginFormAction(prevState: any, fomrData: FormData) {
             body: JSON.stringify({
                 email,
                 password,
-                name
             }),
         });
         const data = await response.json();
@@ -171,3 +175,5 @@ async function loginFormAction(prevState: any, fomrData: FormData) {
     }
 
 }
+
+// TODO : Add redirect to dashboard if user is logged in 

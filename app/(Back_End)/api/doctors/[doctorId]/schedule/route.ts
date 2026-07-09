@@ -3,7 +3,7 @@ import { Doctor } from "@/app/(Back_End)/controllers/doctor.controller";
 
 /**
  * @swagger
- * /api/v2/doctors/{id}/schedule:
+ * /api/doctors/{doctorId}/schedule:
  *   get:
  *     tags:
  *       - Doctors
@@ -38,13 +38,17 @@ import { Doctor } from "@/app/(Back_End)/controllers/doctor.controller";
  *                   type: string
  *                   example: "Doctor not found"
  */
-export async function GET({ params }: { params: Promise<{doctorId : string}> }) {
-    return Doctor.getSlots((await params).doctorId)
+export async function GET(req: NextRequest, { params }: { params: Promise<{ doctorId: string }> }) {
+    const query = req.nextUrl.searchParams;
+    const dayOfWeek = query.get("dayOfWeek") as string
+    const fromTime = query.get("fromTime") as string
+    const toTime = query.get("toTime") as string
+    return Doctor.getSchedule(req, (await params).doctorId, {dayOfWeek, fromTime, toTime})
 }
 
 /**
  * @swagger
- * /api/v2/doctors/{id}/schedule:
+ * /api/doctors/{doctorId}/schedule:
  *   put:
  *     tags:
  *       - Doctors
@@ -154,6 +158,7 @@ export async function GET({ params }: { params: Promise<{doctorId : string}> }) 
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{doctorId : string}> }) {
     const body = await req.json()
+
     return Doctor.replaceSchedule(req, (await params).doctorId, body)
 }
 

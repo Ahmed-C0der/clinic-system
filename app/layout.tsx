@@ -4,18 +4,17 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner"
 import UserContextProvider from "./(Front_End)/context/user";
+import { Noto_Sans_Arabic } from "next/font/google"
+ 
+import { DirectionProvider } from "@/components/ui/direction"
+ 
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const fontSans = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  variable: "--font-sans",
+})
+ 
 const cairo=Cairo({
   variable: "--font-cairo",
   subsets: ["latin"],
@@ -33,13 +32,15 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="ar"
-      className={cn("h-full", "antialiased",cairo.className, geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
+     lang="ar" dir="rtl"
+      className={cn("h-full", "antialiased",cairo.className, fontSans.variable)}
     >
       <body className="min-h-full flex flex-col">
+        <DirectionProvider dir="rtl">
         <UserContextProvider>
           {children}
         </UserContextProvider>
+        </DirectionProvider>
           <Toaster />
         
         </body>

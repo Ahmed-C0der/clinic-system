@@ -3,7 +3,7 @@ import { Doctor } from "@/app/(Back_End)/controllers/doctor.controller";
 
 /**
  * @swagger
- * /api/v2/doctors:
+ * /api/doctors:
  *   get:
  *     tags:
  *       - Doctors
@@ -68,9 +68,10 @@ import { Doctor } from "@/app/(Back_End)/controllers/doctor.controller";
 export async function GET(req: NextRequest) {
     const query = req.nextUrl.searchParams;
     return Doctor.list(req, {
-        search: query.get("search"),
-        specialty: query.get("specialty"),
-        available: query.get("available"),
+        name: query.get("name") as string,
+        specialty: query.get("specialty")as string == "all" ? null : query.get("specialty") as string,
+        available: query.get("available") as string,
     });
 }
 
+// TODO : add try catch blocks

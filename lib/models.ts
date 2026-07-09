@@ -193,7 +193,7 @@ export interface Service {
   createdAt   : Date;
 }
 
-export interface DoctorService {
+export interface DoctorService  {
   id        : string;
   doctorId  : string;
   serviceId : string;

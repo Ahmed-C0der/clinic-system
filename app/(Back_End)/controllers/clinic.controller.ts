@@ -506,7 +506,11 @@ export class Clinic {
 
     static async GetCommonQuestions(req: NextRequest) {
         try {
-            const commonQuestions = await prisma.commonQuestion.findMany();
+            const commonQuestions = await prisma.commonQuestion.findMany({
+                where:{
+                    deletedAt:null
+                }
+            });
             return NextResponse.json(commonQuestions);
         } catch (e) {
             const message = e instanceof Error ? e.message : 'Server error';

@@ -13,11 +13,7 @@ import { Prisma } from "@/lib/generated/prisma/client";
 
 const DEFAULT_SLOT_MINUTES = 30;
 
-const BLOCKING_STATUSES = [
-  "scheduled",
-  "waiting",
-  "in_progress",
-] as const;
+const BLOCKING_STATUSES = ["scheduled", "waiting", "in_progress"] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared error classes  (move to lib/errors.ts and import from there)
@@ -49,37 +45,80 @@ export class ConflictError extends Error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const listDoctorsSchema = z.object({
-  search:    z.string().trim().min(1).optional(),
-  specialty: z.string().trim().min(1).optional(),
-  available: z.coerce.date().optional(),
+  name: z.string().trim().min(1).nullable().optional(),
+  specialty: z.string().trim().min(1).nullable().optional(),
+  available: z.coerce.date().nullable().optional(),
 });
 
 const updateDoctorSchema = z
   .object({
     // User table fields
-    name:     z.string().trim().min(1).max(150).optional(),
-    phone:    z.string().trim().max(30).optional(),
+    name: z.string().trim().min(1).max(150).optional(),
+    phone: z.string().trim().max(30).optional(),
     isActive: z.boolean().optional(),
     // Doctor table fields
-    licenseNumber:   z.string().trim().max(100).optional(),
-    specialty:       z.string().trim().min(1).max(100).optional(),
-    bio:             z.string().trim().max(2000).optional(),
+    licenseNumber: z.string().trim().max(100).optional(),
+    specialty: z.string().trim().min(1).max(100).optional(),
+    bio: z.string().trim().max(2000).optional(),
     consultationFee: z.coerce.number().nonnegative().optional(),
-    slotDuration:    z.coerce.number().int().positive().max(480).optional(),
+    slotDuration: z.coerce.number().int().positive().max(480).optional(),
   })
   .refine((obj) => Object.keys(obj).length > 0, "No fields provided to update");
 
 const scheduleDaySchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Expected HH:mm"),
-  endTime:   z.string().regex(/^\d{2}:\d{2}$/, "Expected HH:mm"),
-  isActive:  z.boolean().optional().default(true),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Expected HH:mm"),
+  isActive: z.boolean().optional().default(true),
 });
 
 const replaceScheduleSchema = z.object({
   days: z.array(scheduleDaySchema).min(1, "Provide at least one day"),
 });
 
+// تعبير نمطي (Regex) للتأكد من أن الوقت ممرر بصيغة HH:MM (مثال 09:30 أو 17:00)
+const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+export const getScheduleQuerySchema = z
+  .object({
+    // تحويل النص تلقائياً إلى رقم والتأكد أنه يوم من أيام الأسبوع (1 لـ 7)
+    dayOfWeek: z.coerce
+      .number()
+      .min(1, "Day of week must be between 1 and 7")
+      .max(7, "Day of week must be between 1 and 7")
+      .nullable()
+      .optional(),
+
+    // التأكد من صيغة وقت البداية
+    fromTime: z
+      .string()
+      .regex(timeRegex, { message: "fromTime must be in HH:MM format" })
+      .nullable()
+      .optional(),
+
+    // التأكد من صيغة وقت النهاية
+    toTime: z
+      .string()
+      .regex(timeRegex, { message: "toTime must be in HH:MM format" })
+      .nullable()
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // شرط إضافي: إذا تم إرسال الوقتين معاً، يجب أن يكون وقت البداية قبل وقت النهاية
+      if (data.fromTime && data.toTime) {
+        return data.fromTime < data.toTime;
+      }
+      return true;
+    },
+    {
+      message: "fromTime must be earlier than toTime",
+      path: ["fromTime"], // تحديد مكان الخطأ عند حدوثه
+    },
+  );
+
+// تصدير النوع (TypeScript Type) للاستخدام في الـ Controller
+export type GetScheduleQueryInput = z.infer<typeof getScheduleQuerySchema>;
 const updateScheduleDaySchema = scheduleDaySchema
   .partial()
   .refine((obj) => Object.keys(obj).length > 0, "No fields provided to update");
@@ -87,8 +126,8 @@ const updateScheduleDaySchema = scheduleDaySchema
 const timeBlockSchema = z
   .object({
     startAt: z.coerce.date(),
-    endAt:   z.coerce.date(),
-    reason:  z.string().trim().max(255).optional(),
+    endAt: z.coerce.date(),
+    reason: z.string().trim().max(255).optional(),
   })
   .refine((data) => data.endAt > data.startAt, {
     message: "endAt must be after startAt",
@@ -96,39 +135,42 @@ const timeBlockSchema = z
   });
 
 const slotsQuerySchema = z.object({
-  date:     z.coerce.date(),
+  date: z.coerce.date().nullable(),
   duration: z.coerce
     .number()
     .int()
     .positive()
     .max(480)
     .optional()
+    .nullable()
     .default(DEFAULT_SLOT_MINUTES),
 });
 
-export type UpdateDoctorInput   = z.infer<typeof updateDoctorSchema>;
+export type UpdateDoctorInput = z.infer<typeof updateDoctorSchema>;
 export type ReplaceScheduleInput = z.infer<typeof replaceScheduleSchema>;
-export type TimeBlockInput       = z.infer<typeof timeBlockSchema>;
+export type TimeBlockInput = z.infer<typeof timeBlockSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable include shape
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DOCTOR_SELECT = {
-  id:              true,
-  specialty:       true,
-  bio:             true,
+  id: true,
+  specialty: true,
+  bio: true,
   consultationFee: true,
-  licenseNumber:   true,
-  slotDuration:    true,
+  licenseNumber: true,
+  slotDuration: true,
   user: {
     select: {
-      id:       true,
-      name:     true,
-      email:    true,
-      phone:    true,
-      role:     true,
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
       isActive: true,
+      profileImg:true,
+      gender:true,
     },
   },
 } as const;
@@ -138,7 +180,6 @@ const DOCTOR_SELECT = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class Doctor {
-  
   // ── List ────────────────────────────────────────────────────────────────
 
   /**
@@ -154,18 +195,15 @@ export class Doctor {
     // const auth = await authenticate(req, [Role.admin, Role.receptionist, Role.doctor, Role.patient]);
     // if (auth instanceof NextResponse) return auth;
 
-    const { search, specialty, available } = listDoctorsSchema.parse(query);
+    const { name, specialty, available } = listDoctorsSchema.parse(query);
     const { page, limit, skip } = getPaginationParams(req);
 
     const where: Record<string, unknown> = {
       user: { deletedAt: null, isActive: true },
     };
 
-    if (search) {
-      where.OR = [
-        { user:      { name:      { contains: search, mode: "insensitive" } } },
-        { specialty: { contains: search, mode: "insensitive" } },
-      ];
+    if (name) {
+      where.user = {name: {contains: name, mode: "insensitive" } }
     }
     if (specialty) where.specialty = specialty;
 
@@ -175,9 +213,16 @@ export class Doctor {
         prisma.doctor.count({ where }),
         prisma.doctor.findMany({
           where,
-          select:  DOCTOR_SELECT,
+          select: {
+            id: true,
+            bio: true,
+            user: { select: { id: true, name: true ,gender:true,profileImg:true,} },
+            specialty: true,
+            consultationFee: true,
+            slotDuration:true
+          },
           orderBy: { user: { name: "asc" } },
-          take:    limit,
+          take: limit,
           skip,
         }),
       ]);
@@ -193,7 +238,14 @@ export class Doctor {
     // FIX #3: paginate AFTER filtering so meta is accurate
     const allDoctors = await prisma.doctor.findMany({
       where,
-      select:  DOCTOR_SELECT,
+      select: {id: true,
+            bio: true,
+            user: { select: { id: true, name: true } },
+            specialty: true,
+            consultationFee: true,
+            slotDuration:true,
+            
+          },
       orderBy: { user: { name: "asc" } },
     });
 
@@ -202,7 +254,7 @@ export class Doctor {
     const availabilityResults = await Promise.all(
       allDoctors.map(async (doctor) => {
         const slots = await this.getSlots(doctor.id, {
-          date:     available,
+          date: available,
           duration: slotDuration,
         });
         return slots.length > 0 ? doctor : null;
@@ -213,9 +265,9 @@ export class Doctor {
       (d): d is NonNullable<typeof d> => d !== null,
     );
 
-    const total      = filtered.length;
+    const total = filtered.length;
     const totalPages = Math.ceil(total / limit);
-    const paginated  = filtered.slice(skip, skip + limit);
+    const paginated = filtered.slice(skip, skip + limit);
 
     return NextResponse.json({
       success: true,
@@ -228,13 +280,36 @@ export class Doctor {
 
   static async getById(req: NextRequest, id: string) {
     const auth = await authenticate(req, [
-      Role.admin, Role.receptionist, Role.doctor, Role.patient,
+      Role.admin,
+      Role.receptionist,
+      Role.doctor,
+      Role.patient,
     ]);
     if (auth instanceof NextResponse) return auth;
 
     const doctor = await prisma.doctor.findFirst({
       where: { id, user: { deletedAt: null, isActive: true } },
-      select: DOCTOR_SELECT,
+      select: {
+        ...DOCTOR_SELECT,
+        services:{
+          where: {
+            service: { isActive: true },
+          },
+          select:{
+            service:{
+              
+              select:{
+
+                name:true,
+                durationMin:true,
+                description:true,
+                basePrice:true,
+                id:true,
+              }
+            }
+          }
+        }
+      },
     });
     if (!doctor) throw new NotFoundError("Doctor not found");
 
@@ -252,51 +327,58 @@ export class Doctor {
     if (auth instanceof NextResponse) return auth;
 
     // FIX #6 — doctor can only edit themselves
-    if (auth.user.role === Role.doctor ) {
-      const doctor= await this.assertExists(doctorId)
+    if (auth.user.role === Role.doctor) {
+      const doctor = await this.assertExists(doctorId);
       if (doctor.userId !== auth.user.id) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 
-    const data        = updateDoctorSchema.parse(input);
+    const data = updateDoctorSchema.parse(input);
     const performedBy = auth.user.id;
-    const before      = await this.assertExists(doctorId);
+    const before = await this.assertExists(doctorId);
 
     const userFields = {
-      ...(data.name     !== undefined && { name:     data.name }),
-      ...(data.phone    !== undefined && { phone:    data.phone }),
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.phone !== undefined && { phone: data.phone }),
       ...(data.isActive !== undefined && { isActive: data.isActive }), // TODO : make sure it's available for doctore to re-active his profile
     };
 
     const doctorFields = {
-      ...(data.specialty       !== undefined && { specialty:       data.specialty }),
-      ...(data.licenseNumber   !== undefined && { licenseNumber:   data.licenseNumber }),
-      ...(data.bio             !== undefined && { bio:             data.bio }),
-      ...(data.consultationFee !== undefined && { consultationFee: data.consultationFee }),
-      ...(data.slotDuration    !== undefined && { slotDuration:    data.slotDuration }),
+      ...(data.specialty !== undefined && { specialty: data.specialty }),
+      ...(data.licenseNumber !== undefined && {
+        licenseNumber: data.licenseNumber,
+      }),
+      ...(data.bio !== undefined && { bio: data.bio }),
+      ...(data.consultationFee !== undefined && {
+        consultationFee: data.consultationFee,
+      }),
+      ...(data.slotDuration !== undefined && {
+        slotDuration: data.slotDuration,
+      }),
     };
 
-    const updated = await prisma.$transaction(async (tx) => { // update user data if exist , return DOCTOR_SELECT
+    const updated = await prisma.$transaction(async (tx) => {
+      // update user data if exist , return DOCTOR_SELECT
       if (Object.keys(userFields).length > 0) {
         await tx.user.update({
           where: { id: before.userId },
-          data:  userFields,
+          data: userFields,
         });
       }
       return tx.doctor.update({
-        where:  { id: doctorId },
-        data:   doctorFields,
+        where: { id: doctorId },
+        data: doctorFields,
         select: DOCTOR_SELECT,
       });
     });
 
     await logAction({
-      tableName:   "doctors",
-      recordId:    doctorId,
-      action:      "update",
-      oldValue:    before,
-      newValue:    updated,
+      tableName: "doctors",
+      recordId: doctorId,
+      action: "update",
+      oldValue: before,
+      newValue: updated,
       performedBy,
     });
 
@@ -310,26 +392,81 @@ export class Doctor {
    * Query: includeInactive=true  (admin only)
    * FIX #7: admins can pass ?includeInactive=true to see disabled days.
    */
-  static async getSchedule(req: NextRequest, doctorId: string) {
+  static async getSchedule(
+    req: NextRequest,
+    doctorId: string,
+    query?: unknown,
+  ) {
+    // TODO : should i add filters depend on day of week and from , to
     const auth = await authenticate(req, [
-      Role.admin, Role.receptionist, Role.doctor, Role.patient,
+      Role.admin,
+      Role.receptionist,
+      Role.doctor,
+      Role.patient,
     ]);
     if (auth instanceof NextResponse) return auth;
 
     await this.assertExists(doctorId);
 
     const { searchParams } = new URL(req.url);
-    const includeInactive  = searchParams.get("includeInactive") === "true";
+    const includeInactive = searchParams.get("includeInactive") === "true";
 
     // Only admins are allowed to see inactive days
-    const isAdmin        = auth.user.role === Role.admin;
-    const showAllDays    = isAdmin && includeInactive;
+    const isAdmin = auth.user.role === Role.admin;
+    const showAllDays = isAdmin && includeInactive;
 
+    if (!query) {
+      const schedules = await prisma.doctorSchedule.findMany({
+        where: { doctorId, ...(!showAllDays && { isActive: true }) },
+        orderBy: { dayOfWeek: "asc" },
+      });
+      return NextResponse.json({ success: true, data: schedules });
+    }
+
+    // buid filters if query
+    const where: Record<string, unknown> = {
+      doctorId,
+      ...(!showAllDays && { isActive: true }),
+    };
+    const result = getScheduleQuerySchema.safeParse(query);
+
+    if (!result.success) {
+      return NextResponse.json({
+        success: false,
+        errors: result.error.format(),
+      });
+    }
+    const validate = result.data;
+    if (validate.dayOfWeek) {
+      where.dayOfWeek = validate.dayOfWeek;
+    }
+    if (validate.fromTime) {
+      const filterFrom = this.timeStringToDate(validate.fromTime);
+
+      // لكي يكون الطبيب متاحاً عند هذا الوقت، يجب أن يكون وقت نهاية دوامه بعد هذا الوقت
+      where.endTime = {
+        gte: filterFrom,
+      };
+    }
+
+    if (validate.toTime) {
+      const filterTo = this.timeStringToDate(validate.toTime);
+
+      // ويجب أن يكون وقت بداية دوامه قبل وقت نهاية البحث
+      where.startTime = {
+        lte: filterTo,
+      };
+    }
+
+    /*
+    where:{
+    startTime:{gte:"10:00",lte:"17:00"}
+    }
+    */
     const schedules = await prisma.doctorSchedule.findMany({
-      where:   { doctorId, ...(!showAllDays && { isActive: true }) },
+      where,
       orderBy: { dayOfWeek: "asc" },
     });
-
     return NextResponse.json({ success: true, data: schedules });
   }
 
@@ -340,21 +477,26 @@ export class Doctor {
    * FIX #5: added authenticate.
    * FIX #12: soft-disable instead of hard delete to preserve appointment links.
    */
-  static async replaceSchedule(req: NextRequest, doctorId: string, input: unknown) {
+  static async replaceSchedule(
+    req: NextRequest,
+    doctorId: string,
+    input: unknown,
+  ) {
     const auth = await authenticate(req, [Role.admin, Role.doctor]);
     if (auth instanceof NextResponse) return auth;
     const doctor = await this.assertExists(doctorId);
     // FIX #6 — doctor can only edit their own schedule
-    if (auth.user.role === Role.doctor&& doctor.userId !== auth.user.id) {
+    if (auth.user.role === Role.doctor && doctor.userId !== auth.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { days } = replaceScheduleSchema.parse(input);
-    
 
     const dayNumbers = days.map((d) => d.dayOfWeek);
     if (new Set(dayNumbers).size !== dayNumbers.length) {
-      throw new ValidationError("Duplicate dayOfWeek entries in schedule payload");
+      throw new ValidationError(
+        "Duplicate dayOfWeek entries in schedule payload",
+      );
     }
 
     const { before, after } = await prisma.$transaction(async (tx) => {
@@ -364,7 +506,7 @@ export class Doctor {
       // This keeps FK integrity if appointments reference schedule rows.
       await tx.doctorSchedule.updateMany({
         where: { doctorId },
-        data:  { isActive: false },
+        data: { isActive: false },
       });
 
       for (const d of days) {
@@ -374,19 +516,19 @@ export class Doctor {
             doctorId,
             dayOfWeek: d.dayOfWeek,
             startTime: this.timeStringToDate(d.startTime),
-            endTime:   this.timeStringToDate(d.endTime),
-            isActive:  d.isActive,
+            endTime: this.timeStringToDate(d.endTime),
+            isActive: d.isActive,
           },
           update: {
             startTime: this.timeStringToDate(d.startTime),
-            endTime:   this.timeStringToDate(d.endTime),
-            isActive:  d.isActive,
+            endTime: this.timeStringToDate(d.endTime),
+            isActive: d.isActive,
           },
         });
       }
 
       const after = await tx.doctorSchedule.findMany({
-        where:   { doctorId },
+        where: { doctorId },
         orderBy: { dayOfWeek: "asc" },
       });
 
@@ -394,11 +536,11 @@ export class Doctor {
     });
 
     await logAction({
-      tableName:   "doctor_schedules",
-      recordId:    doctorId,
-      action:      "update",
-      oldValue:    before,
-      newValue:    after,
+      tableName: "doctor_schedules",
+      recordId: doctorId,
+      action: "update",
+      oldValue: before,
+      newValue: after,
       performedBy: auth.user.id,
     });
 
@@ -412,18 +554,18 @@ export class Doctor {
    * FIX #5: added authenticate.
    */
   static async updateScheduleDay(
-    req:     NextRequest,
+    req: NextRequest,
     doctorId: string,
-    dayId:    string,
-    input:    unknown,
+    dayId: string,
+    input: unknown,
   ) {
     const auth = await authenticate(req, [Role.admin, Role.doctor]);
     if (auth instanceof NextResponse) return auth;
-    const doctor= await this.assertExists(doctorId)
-    if (auth.user.role === Role.doctor && doctor.userId !== auth.user.id)   
+    const doctor = await this.assertExists(doctorId);
+    if (auth.user.role === Role.doctor && doctor.userId !== auth.user.id)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const data   = updateScheduleDaySchema.parse(input);
+    const data = updateScheduleDaySchema.parse(input);
     const before = await this.assertScheduleDayBelongsTo(doctorId, dayId);
 
     if (data.dayOfWeek !== undefined) {
@@ -441,18 +583,22 @@ export class Doctor {
       where: { id: dayId },
       data: {
         ...(data.dayOfWeek !== undefined && { dayOfWeek: data.dayOfWeek }),
-        ...(data.startTime !== undefined && { startTime: this.timeStringToDate(data.startTime) }),
-        ...(data.endTime   !== undefined && { endTime:   this.timeStringToDate(data.endTime) }),
-        ...(data.isActive  !== undefined && { isActive:  data.isActive }),
+        ...(data.startTime !== undefined && {
+          startTime: this.timeStringToDate(data.startTime),
+        }),
+        ...(data.endTime !== undefined && {
+          endTime: this.timeStringToDate(data.endTime),
+        }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
       },
     });
 
     await logAction({
-      tableName:   "doctor_schedules",
-      recordId:    dayId,
-      action:      "update",
-      oldValue:    before,
-      newValue:    updated,
+      tableName: "doctor_schedules",
+      recordId: dayId,
+      action: "update",
+      oldValue: before,
+      newValue: updated,
       performedBy: auth.user.id,
     });
 
@@ -467,17 +613,22 @@ export class Doctor {
    *         Pass ?all=true (admin) to see past blocks too.
    */
   static async listTimeBlocks(req: NextRequest, doctorId: string) {
-    const auth = await authenticate(req, [Role.admin, Role.receptionist, Role.doctor]);
+    const auth = await authenticate(req, [
+      Role.admin,
+      Role.receptionist,
+      Role.doctor,
+    ]);
     if (auth instanceof NextResponse) return auth;
 
     await this.assertExists(doctorId);
 
     const { searchParams } = new URL(req.url);
-    const showAll  = auth.user.role === Role.admin && searchParams.get("all") === "true";
+    const showAll =
+      auth.user.role === Role.admin && searchParams.get("all") === "true";
     const nowFilter = showAll ? {} : { endsAt: { gt: new Date() } };
 
     const blocks = await prisma.doctorTimeBlock.findMany({
-      where:   { doctorId, ...nowFilter },
+      where: { doctorId, ...nowFilter },
       orderBy: { startsAt: "asc" },
     });
 
@@ -490,9 +641,17 @@ export class Doctor {
    * POST /api/v2/doctors/:id/time-blocks
    * FIX #2: await authenticate.
    */
-  static async addTimeBlock(req: NextRequest, doctorId: string, input: unknown) {
+  static async addTimeBlock(
+    req: NextRequest,
+    doctorId: string,
+    input: unknown,
+  ) {
     // FIX #2 — was missing await
-    const auth = await authenticate(req, [Role.doctor, Role.receptionist, Role.admin]);
+    const auth = await authenticate(req, [
+      Role.doctor,
+      Role.receptionist,
+      Role.admin,
+    ]);
     if (auth instanceof NextResponse) return auth;
 
     const data = timeBlockSchema.parse(input);
@@ -503,25 +662,26 @@ export class Doctor {
       where: {
         doctorId,
         startsAt: { lt: data.endAt },
-        endsAt:   { gt: data.startAt },
+        endsAt: { gt: data.startAt },
       },
     });
-    if (overlapping) throw new ConflictError("Time block overlaps an existing one");
+    if (overlapping)
+      throw new ConflictError("Time block overlaps an existing one");
 
     const created = await prisma.doctorTimeBlock.create({
       data: {
         doctorId,
-        startsAt: data.startAt,   // FIX #1 — schema field is startsAt
-        endsAt:   data.endAt,     // FIX #1 — schema field is endsAt
-        reason:   data.reason,
+        startsAt: data.startAt, // FIX #1 — schema field is startsAt
+        endsAt: data.endAt, // FIX #1 — schema field is endsAt
+        reason: data.reason,
       },
     });
 
     await logAction({
-      tableName:   "doctor_time_blocks",
-      recordId:    created.id,
-      action:      "create",
-      newValue:    created,
+      tableName: "doctor_time_blocks",
+      recordId: created.id,
+      action: "create",
+      newValue: created,
       performedBy: auth.user.id,
     });
 
@@ -535,12 +695,16 @@ export class Doctor {
    * FIX #2: await authenticate.
    */
   static async removeTimeBlock(
-    req:      NextRequest,
+    req: NextRequest,
     doctorId: string,
-    blockId:  string,
+    blockId: string,
   ) {
     // FIX #2 — was missing await
-    const auth = await authenticate(req, [Role.doctor, Role.receptionist, Role.admin]);
+    const auth = await authenticate(req, [
+      Role.doctor,
+      Role.receptionist,
+      Role.admin,
+    ]);
     if (auth instanceof NextResponse) return auth;
 
     const block = await prisma.doctorTimeBlock.findFirst({
@@ -551,10 +715,10 @@ export class Doctor {
     await prisma.doctorTimeBlock.delete({ where: { id: blockId } });
 
     await logAction({
-      tableName:   "doctor_time_blocks",
-      recordId:    blockId,
-      action:      "delete",
-      oldValue:    block,
+      tableName: "doctor_time_blocks",
+      recordId: blockId,
+      action: "delete",
+      oldValue: block,
       performedBy: auth.user.id,
     });
 
@@ -569,88 +733,81 @@ export class Doctor {
    * FIX #5: added authenticate.
    * FIX #9: wrong fallback duration for appointments with no service.
    */
-  static async getSlots(
-    req:      NextRequest | string, // string = internal call from list()
-    doctorId: string,
-    query:    unknown,
-  ): Promise<{ start: Date; end: Date }[]>;
 
-  static async getSlots(
-    doctorId: string,
-    query:    unknown,
-  ): Promise<{ start: Date; end: Date }[]>;
+  static async getSlots(req: NextRequest, doctorId: string, query: unknown) {
+    // التحقق من الصلاحيات
+    const auth = await authenticate(req, [
+      Role.admin,
+      Role.receptionist,
+      Role.doctor,
+      Role.patient,
+    ]);
+    if (auth instanceof NextResponse) return auth;
 
-  static async getSlots(
-    reqOrDoctorId: NextRequest | string,
-    doctorIdOrQuery: string | unknown,
-    maybeQuery?: unknown,
-  ): Promise<{ start: Date; end: Date }[]> {
-    // Overload resolution: internal call passes (doctorId, query)
-    let doctorId: string;
-    let query: unknown;
-
-    if (typeof reqOrDoctorId === "string") {
-      // Internal call: getSlots(doctorId, query)
-      doctorId = reqOrDoctorId;
-      query    = doctorIdOrQuery;
-    } else {
-      // HTTP call: getSlots(req, doctorId, query)
-      const auth = await authenticate(reqOrDoctorId, [
-        Role.admin, Role.receptionist, Role.doctor, Role.patient,
-      ]);
-      if (auth instanceof NextResponse) return [];
-      doctorId = doctorIdOrQuery as string;
-      query    = maybeQuery;
-    }
-
+    // تحليل الاستعلام — التاريخ والمدة اختياريان
     const { date, duration } = slotsQuerySchema.parse(query);
+
+    // جلب بيانات الدكتور من قاعدة البيانات
     const doctor = await this.assertExists(doctorId);
 
-    // Use per-doctor slotDuration if caller didn't specify one
-    const slotMin: number = duration;
+    // إذا لم يُحدد المستخدم المدة، نأخذها من إعدادات الدكتور في قاعدة البيانات
+    const slotMin: number = duration != null ? duration : doctor.slotDuration;
 
-    // FIX #4 — derive dayOfWeek from the LOCAL date string, not UTC epoch
-    // date is already a Date; treat its UTC parts as the "local" clinic date
-    const dayOfWeek = date.getUTCDay();   // safe when client sends YYYY-MM-DD (no time)
+    // إذا لم يُحدد المستخدم التاريخ، نستخدم تاريخ اليوم
+    const targetDate: Date = date instanceof Date ? date : new Date();
+    const dayOfWeek: number = targetDate.getUTCDay();
 
+    // البحث عن جدول الدكتور لهذا اليوم
     const schedule = await prisma.doctorSchedule.findFirst({
       where: { doctorId, dayOfWeek, isActive: true },
     });
-    if (!schedule) return [];
 
-    const dayStart = this.combineDateAndTime(date, schedule.startTime);
-    const dayEnd   = this.combineDateAndTime(date, schedule.endTime);
+    // إذا لم يكن هناك جدول لهذا اليوم، نُرجع قائمة فارغة
+    if (!schedule) return NextResponse.json([], { status: 200 });
 
+    // تحديد بداية ونهاية يوم العمل
+    const dayStart = this.combineDateAndTime(targetDate, schedule.startTime);
+    const dayEnd = this.combineDateAndTime(targetDate, schedule.endTime);
+
+    // جلب الفترات المحجوبة والمواعيد المحجوزة بشكل متوازٍ
     const [timeBlocks, appointments] = await Promise.all([
       prisma.doctorTimeBlock.findMany({
         where: {
           doctorId,
           startsAt: { lt: dayEnd },
-          endsAt:   { gt: dayStart },
+          endsAt: { gt: dayStart },
         },
       }),
       prisma.appointment.findMany({
         where: {
           doctorId,
-          status:      { in: BLOCKING_STATUSES as unknown as AppointmentStatus[] },
+          status: { in: BLOCKING_STATUSES as unknown as AppointmentStatus[] },
           scheduledAt: { gte: dayStart, lt: dayEnd },
         },
         include: { service: { select: { durationMin: true } } },
       }),
     ]);
 
+    // تجميع كل الفترات المشغولة (إجازات + مواعيد محجوزة)
     const busyRanges = [
       ...timeBlocks.map((b) => ({ start: b.startsAt, end: b.endsAt })),
       ...appointments.map((a) => {
-        // FIX #9 — fallback to DEFAULT_SLOT_MINUTES, not the caller's requested duration
         const apptDuration = a.service?.durationMin ?? DEFAULT_SLOT_MINUTES;
         return {
           start: a.scheduledAt,
-          end:   new Date(a.scheduledAt.getTime() + apptDuration * 60_000),
+          end: new Date(a.scheduledAt.getTime() + apptDuration * 60_000),
         };
       }),
     ];
 
+    // تصفية المواعيد التي مضى وقتها إذا كان التاريخ هو اليوم
+    const now = new Date();
+    const isToday =
+      targetDate.getUTCFullYear() === now.getUTCFullYear() &&
+      targetDate.getUTCMonth() === now.getUTCMonth() &&
+      targetDate.getUTCDate() === now.getUTCDate();
+
+    // توليد الفترات الزمنية المتاحة
     const slots: { start: Date; end: Date }[] = [];
 
     for (
@@ -658,12 +815,20 @@ export class Doctor {
       cursor.getTime() + slotMin * 60_000 <= dayEnd.getTime();
       cursor = new Date(cursor.getTime() + slotMin * 60_000)
     ) {
-      const slotEnd  = new Date(cursor.getTime() + slotMin * 60_000);
-      const overlaps = busyRanges.some((r) => cursor < r.end && slotEnd > r.start);
+      const slotEnd = new Date(cursor.getTime() + slotMin * 60_000);
+
+      // تخطي الفترات التي مضى وقتها إذا كان اليوم هو تاريخ البحث
+      if (isToday && cursor < now) continue;
+
+      // التحقق من عدم تعارض الفترة مع أي حجز موجود
+      const overlaps = busyRanges.some(
+        (r) => cursor < r.end && slotEnd > r.start
+      );
+
       if (!overlaps) slots.push({ start: new Date(cursor), end: slotEnd });
     }
 
-    return slots;
+    return NextResponse.json({slots});
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -673,44 +838,49 @@ export class Doctor {
   /**
    * FIX #11 — now returns the doctor row so callers can reuse it.
    */
-  private static async assertExists( 
-  doctorId: string, 
-  fields?: Prisma.DoctorSelect
-  ) // check if doctore exist then return fields or (doctor id , userId, speciallity , sloDuration , user name) 
-  { 
-  const doctor = await prisma.doctor.findFirst({
-    where: { 
-      id: doctorId, 
-      user: { isActive: true, deletedAt: null } 
-    },
-    select: fields || {
-      id: true,
-      slotDuration: true,
-      specialty: true,
-      userId: true,
-      user: { select: { id: true, name: true } },
-    },
-  });
+  private static async assertExists(
+    doctorId: string,
+    fields?: Prisma.DoctorSelect,
+  ) {
+    // check if doctore exist then return fields or (doctor id , userId, speciallity , sloDuration , user name)
+    const doctor = await prisma.doctor.findFirst({
+      where: {
+        id: doctorId,
+        user: { isActive: true, deletedAt: null },
+      },
+      select: fields || {
+        id: true,
+        slotDuration: true,
+        specialty: true,
+        userId: true,
+        user: { select: { id: true, name: true } },
+      },
+    });
 
-  if (!doctor) throw new NotFoundError("Doctor not found");
-  
-  return doctor;
-}
+    if (!doctor) throw new NotFoundError("Doctor not found");
 
-  private static async assertScheduleDayBelongsTo(doctorId: string, dayId: string) {
+    return doctor;
+  }
+
+  private static async assertScheduleDayBelongsTo(
+    doctorId: string,
+    dayId: string,
+  ) {
     const row = await prisma.doctorSchedule.findFirst({
       where: { id: dayId, doctorId },
     });
     if (!row) throw new NotFoundError("Schedule day not found");
     return row;
   }
-
+  // translator between Front end and DB : means when resutl used to hanlde with prisma
   /** "09:00"  →  Date(1970-01-01T09:00:00Z)  — matches @db.Time storage. */
   private static timeStringToDate(time: string): Date {
     const [hours, minutes] = time.split(":").map(Number);
     return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0));
   }
 
+
+  // when result used to handle with user req like slots (appear on UI) or appointment
   /** Combine a calendar date with a @db.Time column's time-of-day part. */
   private static combineDateAndTime(date: Date, time: Date): Date {
     return new Date(
