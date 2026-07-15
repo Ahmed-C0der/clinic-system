@@ -117,7 +117,7 @@ export class PatientsController {
 
   static async create(req: NextRequest) { // at first user have patient role but without any info about him , so we use it to create a real patient profile with his info
     try {
-      const auth = await authenticate(req, ['admin', 'receptionist']);
+      const auth = await authenticate(req, ['admin', 'receptionist','patient']);
       if (auth instanceof NextResponse) return auth;
 
       const body = await req.json();
@@ -184,6 +184,7 @@ export class PatientsController {
     try {
       const auth = await authenticate(req);
       if (auth instanceof NextResponse) return auth;
+      
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -208,7 +209,7 @@ export class PatientsController {
         return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
       }
 
-      return NextResponse.json(patient);
+      return NextResponse.json({patient , success : true});
     } catch (e: any) {
       return AppointmentsController.catchError(e)
     }
@@ -477,7 +478,7 @@ export class PatientsController {
       const auth = await authenticate(req);
       if (auth instanceof NextResponse) return auth;
 
-      const { id } = params;
+      const { patientId } = params;
       const allowed = await this.checkPatientAccess(auth.user, id);
       if (!allowed) {
         return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
@@ -489,7 +490,7 @@ export class PatientsController {
       const from = searchParams.get('from');
       const to = searchParams.get('to');
 
-      const where: any = { patientId: id };
+      const where: any = { patientId };
 
       if (fileType) {
         where.fileType = fileType;

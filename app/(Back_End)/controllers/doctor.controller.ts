@@ -341,7 +341,7 @@ export class Doctor {
     const userFields = {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.phone !== undefined && { phone: data.phone }),
-      ...(data.isActive !== undefined && { isActive: data.isActive }), // TODO : make sure it's available for doctore to re-active his profile
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
     };
 
     const doctorFields = {
@@ -397,7 +397,6 @@ export class Doctor {
     doctorId: string,
     query?: unknown,
   ) {
-    // TODO : should i add filters depend on day of week and from , to
     const auth = await authenticate(req, [
       Role.admin,
       Role.receptionist,

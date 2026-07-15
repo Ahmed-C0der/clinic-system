@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input"
 // import loginFormAction from '../(Front_End)/action/login'
 import { toast } from "sonner"
 import Image from 'next/image'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
 interface LoginState {
     message: string;
     error?: any;
@@ -30,25 +32,55 @@ interface LoginState {
         password?: string;
         name?: string;
     };
+    success:boolean;
 }
 
 const initialState: LoginState = {
     message: "",
     user: { email: "", password: "", name: "" },
+    success:false
 };
 
 function Login() {
     const [state, formAction, isPending] = useActionState(
         loginFormAction,
         initialState,
-        
+
     )
+
+    useEffect(() => {
+        fetch("/api/auth/me")
+            .then(res => res.ok && res.json().then(data => {
+                if (data?.user?.role) {
+                    const roleMap: Record<string, string> = {
+                        admin: "/dashboard",
+                        doctor: "/doctor-dashboard",
+                        patient: "/dashboard",
+                        receptionist: "/receptionist-dashboard",
+                    }
+                    window.location.href = roleMap[data.user.role] || "/dashboard"
+                }
+            }))
+            .catch(() => {})
+    }, [])
 
     useEffect(() => {
         if (state?.error) {
             toast.error(state.error);
         }
     }, [state?.error]);
+    useEffect(()=>{
+        if(state?.success){
+            toast.success(state.message);
+            switch (state.user.role){
+                case "admin" : redirect("/dashboard")
+                case "doctor" : redirect("/doctor-dashboard")
+                case "patient" : redirect("/dashboard")
+                case "receptionist" : redirect("/receptionist-dashboard")
+            }
+
+        }
+    },[state?.success])
     return (
         <main className="flex min-h-screen">
             {/* login field */}
@@ -122,6 +154,14 @@ function Login() {
                         >
                             {isPending ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
                         </Button>
+                        <div className='text-center'>
+                        <p>لا يوجد لديك حساب ؟</p>
+                        <Link href={"/register"} className="text-red-600 text-center">تسجيل حساب جديد</Link>
+                        </div>
+                        <div className="flex items-center justify-center">
+                            <p>نسيت كلمة المرور ؟</p>
+                            <Link href={"/forgot-password"} className="text-red-600 text-center">إعادة تعيين كلمة المرور</Link>
+                        </div>
                     </CardFooter>
                 </Card>
             </section>
@@ -152,7 +192,7 @@ async function loginFormAction(prevState: any, fomrData: FormData) {
 
     }
     try {
-        const response = await fetch("api/auth/login", {
+        const response = await fetch("/api/auth/login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -166,14 +206,12 @@ async function loginFormAction(prevState: any, fomrData: FormData) {
         if (!response.ok) {
             return { message: "error", error: data.error }
         }
-        return { message: "user is logged in successfully", user: data.user }
+        return { message: "user is logged in successfully", user: data.user  , success:true}
     } catch (error) {
         if (error instanceof Error) {
-            return { message: "error", error: error.message }
+            return { message: "error", error: error.message,success:false }
         }
-        return { message: "error", error }
+        return { message: "error", error,success:false }
     }
 
 }
-
-// TODO : Add redirect to dashboard if user is logged in 

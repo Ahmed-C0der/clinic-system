@@ -1,4 +1,3 @@
-// TODO : review this controller
 import { z } from "zod";
 import { Decimal } from "@/lib/generated/prisma/runtime/library";
 import { prisma } from "@/lib/prisma";

@@ -1,4 +1,3 @@
-// TODO : Review Medical File controller
 // src/app/controllers/medicalFiles.controller.ts
 import { z }                         from "zod";
 import { prisma }                    from "@/lib/prisma";

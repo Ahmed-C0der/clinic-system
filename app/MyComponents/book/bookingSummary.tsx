@@ -2,7 +2,51 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Gender } from '@/lib/generated/prisma/enums'
 import { MessageCircleWarning } from 'lucide-react'
 import Image from 'next/image'
-import React from 'react'
+import React, { createContext, useContext, useState } from 'react'
+
+type BookingData = {
+    impgProfile: string | null
+    doctorName: string | null
+    doctorId: string | null
+    gender: string | null
+    date: string | null
+    time: string | null
+    serviceId: string | null
+    price: number | null
+}
+
+type BookingContextType = {
+    booking: BookingData
+    setBooking: React.Dispatch<React.SetStateAction<BookingData>>
+}
+
+const defaultBooking: BookingData = {
+    impgProfile: null,
+    doctorName: null,
+    doctorId: null,
+    gender: null,
+    date: null,
+    time: null,
+    serviceId: null,
+    price: null,
+}
+
+const BookingContext = createContext<BookingContextType | undefined>(undefined)
+
+export const useBooking = () => {
+    const ctx = useContext(BookingContext)
+    if (!ctx) throw new Error("useBooking must be used within BookingProvider")
+    return ctx
+}
+
+export function BookingProvider({ children }: { children: React.ReactNode }) {
+    const [booking, setBooking] = useState<BookingData>(defaultBooking)
+    return (
+        <BookingContext.Provider value={{ booking, setBooking }}>
+            {children}
+        </BookingContext.Provider>
+    )
+}
 
 export default function BookinSummary({
     impgProfile,
@@ -17,7 +61,6 @@ export default function BookinSummary({
     date:string|null
     time:string|null
 }) {
-    // TODO : add useState to sort data and use create Context to export value,SetValue
   return (
     <Card>
         <div className="relative">

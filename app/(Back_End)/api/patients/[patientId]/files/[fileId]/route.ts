@@ -45,8 +45,8 @@ import { PatientsController } from '../../../../../controllers/patients.controll
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; fileId: string }> }
+  { params }: { params: Promise<{ patientId: string; fileId: string }> }
 ) {
-  const resolvedParams = await params;
-  return PatientsController.deleteFile(req, resolvedParams);
+  const { patientId, fileId } = await params;
+  return PatientsController.deleteFile(req, { patientId, fileId });
 }

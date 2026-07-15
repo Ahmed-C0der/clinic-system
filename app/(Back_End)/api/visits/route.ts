@@ -76,10 +76,11 @@ import { AppointmentStatus } from '@/lib/generated/prisma/enums';
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const doctorId = searchParams.get('doctorId') as string;
+    const patientId = searchParams.get('patientId') as string;
     const status = searchParams.get('status') as AppointmentStatus;
     const from = searchParams.get('from') as Date | string;
     const to = searchParams.get('to') as Date | string;
-    return visitsController.list(request, doctorId, status, from, to);
+    return visitsController.list(request, doctorId,patientId, status, from, to);
 }
 
 

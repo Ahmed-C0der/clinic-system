@@ -7,6 +7,7 @@ import { AppointmentsController } from './appointments.controller';
 
 
 export class visitsController {
+    
     static async listAllVisits(request: NextRequest) {
         try {
             const auth = await authenticate(request, [Role.admin,Role.receptionist]);
@@ -59,7 +60,7 @@ export class visitsController {
     }
     // get all visits for a doctor with the ability to filter by date and status 
 
-    static async list(request: NextRequest, doctorId: string, status?: AppointmentStatus, from?: Date | string, to?: Date | string) {
+    static async list(request: NextRequest, doctorId?: string,patientId?:string, status?: AppointmentStatus, from?: Date | string, to?: Date | string) {
         try {
             // fisrt authanticate user to get sure his role not patient
             const auth = await authenticate(request, [Role.admin, Role.doctor, Role.receptionist]);
@@ -67,16 +68,26 @@ export class visitsController {
             const { page, limit, skip } = getPaginationParams(request);
 
             const where: any = {
-                deletedAt: null,
-                appointment: {
-                    doctorId: doctorId,
-                    status: status && status,
-                    scheduledAt: {
-                        gte: from && from,
-                        lte: to && to,
-                    }
-                }
-            }
+    deletedAt: null,
+    appointment: {}, // Initialize as empty
+};
+
+// Dynamically build appointment filters
+if (doctorId) where.appointment.doctorId = doctorId;
+if (patientId) where.appointment.patientId = patientId;
+if (status) where.appointment.status = status;
+
+// Construct scheduledAt filter only if at least one date bound is provided
+if (from || to) {
+    where.appointment.scheduledAt = {};
+    if (from) where.appointment.scheduledAt.gte = from;
+    if (to) where.appointment.scheduledAt.lte = to;
+}
+
+// Clean up: If appointment object is empty, remove it to avoid Prisma validation error
+if (Object.keys(where.appointment).length === 0) {
+    delete where.appointment;
+}
             const [total, data] = await Promise.all([
                 prisma.visit.count({ where }),
                 prisma.visit.findMany({ // get all visits for a doctor with the ability to filter by date and status including just basic info like pateint name , code , servicename , doctor name

@@ -1,5 +1,3 @@
-// TODO : review audit log controller
-
 // src/app/controllers/reports.controller.ts
 import { z }                         from "zod";
 import { prisma }                    from "@/lib/prisma";

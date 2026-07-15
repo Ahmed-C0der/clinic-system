@@ -76,7 +76,7 @@ model User {
   email        String    @unique @db.VarChar(255)
   passwordHash String    @map("password_hash") @db.Text
   role         Role       @default(patient)
-  gender         Gender?
+  gender         Gender
   phone        String?   @db.VarChar(20)
   isActive     Boolean   @default(true) @map("is_active")
   profileImg    String?    @map("profile_img")

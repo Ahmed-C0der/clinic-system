@@ -13,6 +13,7 @@ import { logAction } from '@/lib/audit';
 import { cookies } from 'next/headers';
 import { sendResetPasswordEmail } from '@/lib/mailer';
 import crypto from 'crypto'
+import { redirect } from 'next/navigation';
 
 const RESET_SECRET =process.env.JWT_SECRET! ;
 
@@ -44,7 +45,8 @@ export class AuthController {
         id: user.id,
         email: user.email,
         role: user.role,
-        name: user.name
+        name: user.name,
+        gender:user.gender!,
       });
 
       const refresh_token = await signRefreshToken({ id: user.id });
@@ -66,7 +68,8 @@ export class AuthController {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          gender:user.gender
         }
       });
     } catch (e) {
@@ -79,9 +82,9 @@ export class AuthController {
   static async register(req: NextRequest) {
     try {
       const body = await req.json();
-      const { email, password, name } = body;
+      const { email, password, name ,gender} = body;
 
-      if (!email || !password || !name) {
+      if (!email || !password || !name || !gender) {
         return NextResponse.json({ error: 'Email, password and name are required' }, { status: 400 });
       }
 
@@ -101,7 +104,8 @@ export class AuthController {
           passwordHash: hash,
           name,
           role: 'patient',
-          isActive: true
+          isActive: true,
+          gender
         }
       });
       // login in after registration 
@@ -109,7 +113,8 @@ export class AuthController {
         id: newUser.id,
         email: newUser.email,
         role: newUser.role,
-        name: newUser.name
+        name: newUser.name,
+        gender:newUser.gender!,
       });
 
       const refresh_token =  signRefreshToken({ id: newUser.id });
@@ -136,7 +141,8 @@ export class AuthController {
           id: newUser.id,
           name: newUser.name,
           email: newUser.email,
-          role: newUser.role
+          role: newUser.role,
+          gender:newUser.gender
         }
       });
     } catch (e) {
@@ -162,8 +168,7 @@ export class AuthController {
         newValue: { status: 'logged_out' },
         performedBy: auth.user.id
       });
-
-      return NextResponse.json({ success: true, message: 'Logged out successfully' });
+      redirect("/login")
     } catch (e) {
       if (e instanceof Error) {
         return NextResponse.json({ error: e.message || 'Server error during logout' }, { status: 500 });
@@ -197,7 +202,8 @@ export class AuthController {
         id: user.id,
         email: user.email,
         role: user.role,
-        name: user.name
+        name: user.name,
+        gender:user.gender!
       });
       await saveTokenInCookies(access_token)
       return NextResponse.json({ message:"access token have been updated successfully" });

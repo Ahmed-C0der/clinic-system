@@ -63,7 +63,6 @@ export default function TestimonialsCard() {
             if (response.ok) {
                 const data: Testimonial[] = await response.json()
                 data.length > 0 && setTestimonials(data)
-                console.log(testimonial);
                 
 
             }
@@ -75,7 +74,12 @@ export default function TestimonialsCard() {
     }, [])
     return (
         <>
-            <Carousel>
+            <Carousel
+            dir={"rtl"}
+            opts={{
+                direction: "rtl",
+            }}
+            >
                 <CarouselContent className="-ml-2 md:-ml-4">
                     {testimonial.map((testimonial, idx) => (
                         <CarouselItem key={idx} className="pl-2 md:pl-4">

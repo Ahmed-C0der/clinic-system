@@ -103,11 +103,12 @@
 import Step1 from '@/app/MyComponents/book/step1'
 import Step2 from '@/app/MyComponents/book/step2'
 import React, { useEffect, useState } from 'react'
-import { redirect, useParams } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Step3 from '@/app/MyComponents/book/step3'
 import Step4 from '@/app/MyComponents/book/step4'
 import { Decimal } from '@prisma/client/runtime/client'
 import { Gender, Role } from '@/lib/generated/prisma/enums'
+import { toast } from 'sonner'
 
 export type Doctor = {
     id: string;
@@ -148,10 +149,10 @@ export default function Page() {
     const [doctor, setDoctor] = useState<Doctor | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string | null>(null)
-
+    const router = useRouter()
     useEffect(() => {
         if (!doctorId) {
-            redirect('/doctors')
+            router.push('/doctors')
         }
 
         let cancelled = false
@@ -162,6 +163,11 @@ export default function Page() {
             try {
                 const res = await fetch(`/api/doctors/${doctorId}`)
                 if (!res.ok) {
+                    if (res.status == 401) {
+                        toast.error("يجب عليك تسجيل الدخول لحجز موعد")
+                        router.push('/login')
+                        return
+                    }
                     throw new Error(`Failed to load doctor (${res.status})`)
                 }
                 const body: { success: boolean; data: Doctor } = await res.json()

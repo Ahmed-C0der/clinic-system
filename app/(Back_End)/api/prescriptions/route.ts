@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
 import { PrescriptionService } from "@/app/(Back_End)/controllers/prescription.controller";
-// TODO : test this api and all sub apis and there swagger ui 
 /**
  * @openapi
  * /api/prescriptions:

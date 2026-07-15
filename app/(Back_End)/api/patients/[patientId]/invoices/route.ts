@@ -112,7 +112,7 @@ import { PatientsController } from "@/app/(Back_End)/controllers/patients.contro
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  return PatientsController.listInvoices(req, resolvedParams);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
+  const { patientId } = await params;
+  return PatientsController.listInvoices(req, { patientId });
 }

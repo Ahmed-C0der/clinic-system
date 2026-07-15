@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Doctor } from "@/app/(Back_End)/controllers/doctor.controller";
 
 /**
@@ -66,12 +66,17 @@ import { Doctor } from "@/app/(Back_End)/controllers/doctor.controller";
  *                   example: "Invalid date format for available"
  */
 export async function GET(req: NextRequest) {
-    const query = req.nextUrl.searchParams;
-    return Doctor.list(req, {
-        name: query.get("name") as string,
-        specialty: query.get("specialty")as string == "all" ? null : query.get("specialty") as string,
-        available: query.get("available") as string,
-    });
+    try {
+        const query = req.nextUrl.searchParams;
+        return await Doctor.list(req, {
+            name: query.get("name") as string,
+            specialty: query.get("specialty")as string == "all" ? null : query.get("specialty") as string,
+            available: query.get("available") as string,
+        });
+    } catch (e: any) {
+        return NextResponse.json(
+            { success: false, error: e.message || "Internal server error" },
+            { status: 500 }
+        );
+    }
 }
-
-// TODO : add try catch blocks

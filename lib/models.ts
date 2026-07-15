@@ -3,6 +3,7 @@ export interface accessTokenPayload {
   email: string;
   role: 'admin' | 'doctor' | 'receptionist' | 'patient';
   name: string;
+  gender: Gender;
 }
 
 export interface AuthContext {

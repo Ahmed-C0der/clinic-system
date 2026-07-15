@@ -6,4 +6,3 @@ export default function Register() {
     <RegisterPage />
   )
 }
-// TODO : Add redirect to dashboard if user is logged in 

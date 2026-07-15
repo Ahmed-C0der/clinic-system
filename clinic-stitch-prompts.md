@@ -322,7 +322,7 @@ Colors: #1A6B5A #2DBFA0 #F9FAFB. Fonts: Noto Kufi Arabic + IBM Plex Arabic. RTL.
 
 ---
 
-### 17. `/admin/dashboard` — لوحة المدير
+### 17. `/(adminProtal)/dashboard` — لوحة المدير
 
 ```
 RTL Arabic admin analytics dashboard sketch.
@@ -340,7 +340,7 @@ Colors: #1A6B5A #2DBFA0 #F9FAFB. Fonts: Noto Kufi Arabic + IBM Plex Arabic. RTL.
 
 ---
 
-### 18. `/admin/settings` — الإعدادات
+### 18. `/(adminProtal)/settings` — الإعدادات
 
 ```
 RTL Arabic clinic settings page sketch.
