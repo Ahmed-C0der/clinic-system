@@ -72,7 +72,7 @@ import { PrescriptionService } from "@/app/(Back_End)/controllers/prescription.c
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ prescriptionId: string } > }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ prescriptionId: string } > }) {
     const { prescriptionId } = await params;
     return PrescriptionService.generatePdf(req, prescriptionId);
 }

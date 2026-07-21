@@ -143,11 +143,11 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    <Button className="bg-[#1A6B5A] hover:bg-[#1A6B5A]/90 text-white font-cairo font-semibold rounded-lg px-6 transition-all duration-300">
+                  <div className="flex flex-wrap gap-3 pt-2 ">
+                    <Button className="cursor-not-allowed bg-[#1A6B5A] hover:bg-[#1A6B5A]/90 text-white font-cairo font-semibold rounded-lg px-6 transition-all duration-300">
                       تعديل الموعد
                     </Button>
-                    <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 font-cairo font-semibold rounded-lg px-6 border border-red-100 transition-all duration-300">
+                    <Button variant="ghost" className="cursor-not-allowed text-red-500 hover:text-red-600 hover:bg-red-50 font-cairo font-semibold rounded-lg px-6 border border-red-100 transition-all duration-300">
                       إلغاء الموعد
                     </Button>
                   </div>
@@ -306,7 +306,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
             <CardContent className="pt-4 p-2">
               <div className="grid grid-cols-2 gap-2">
                 <Link
-                  href="/services"
+                  href="/doctors"
                   className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-100 hover:bg-[#1A6B5A]/5 hover:border-[#1A6B5A]/20 transition-all duration-300 text-center"
                 >
                   <Calendar className="w-5 h-5 text-[#1A6B5A] mb-2" />

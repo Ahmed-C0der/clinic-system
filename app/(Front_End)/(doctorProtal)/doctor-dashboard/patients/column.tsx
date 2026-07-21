@@ -2,15 +2,14 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Eye, FileText } from "lucide-react";
 
-// تعريف شكل البيانات كما يظهر في قاعدة بياناتك
 export type Patient = {
   id: string;
   patientName: string;
   patientCode: string;
   visitDate: Date;
-  // FIXME: before unComment this line create the prisma enum for patient status and for now it's not important so it's and external feature
-  // status: "مستقر" | "حرج" | "متابعة";
   notes: string | null;
 };
 
@@ -18,45 +17,45 @@ export const columns: ColumnDef<Patient>[] = [
   {
     accessorKey: "patientName",
     header: "اسم المريض",
+    cell: ({ row }) => (
+      <span className="text-sm font-medium text-on-surface">{row.getValue("patientName")}</span>
+    ),
   },
   {
     accessorKey: "patientCode",
     header: "رقم الملف",
+    cell: ({ row }) => (
+      <span className="text-sm text-on-surface/70">{row.getValue("patientCode")}</span>
+    ),
   },
   {
     accessorKey: "visitDate",
     header: "آخر زيارة",
     cell: ({ row }) => {
       const date = new Date(row.getValue("visitDate") as Date);
-      return <span>{date.toLocaleDateString("ar-EG")}</span>;
+      return <span className="text-sm text-on-surface/70">{date.toLocaleDateString("ar-EG")}</span>;
     },
   },
-  // {
-  //   accessorKey: "status",
-  //   header: "الحالة",
-  // },
   {
     id: "actions",
     header: "الإجراءات",
     cell: ({ row }) => {
-      const patient = row.original; // الوصول لبيانات الصف الحالي
+      const patient = row.original;
       
       return (
         <div className="flex gap-2">
-          {/* رابط عرض السجل باستخدام id المريض */}
-          <Link 
-            href={`/doctor-dashboard/patients/${patient.id}`} 
-            className="text-blue-600 hover:underline"
-          >
-            عرض السجل
+          <Link href={`/doctor-dashboard/patients/${patient.id}`}>
+            <Button variant="ghost" size="sm" className="text-accent hover:text-accent/80 hover:bg-accent/10">
+              <Eye className="w-4 h-4 ml-1" />
+              عرض السجل
+            </Button>
           </Link>
           
-          {/* رابط إضافة وصفة */}
-          <Link 
-            href={`/doctor-dashboard/patients/${patient.id}/prescription`} 
-            className="text-green-600 hover:underline"
-          >
-            إضافة وصفة
+          <Link href={`/doctor-dashboard/patients/${patient.id}/prescription`}>
+            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 hover:bg-primary/10">
+              <FileText className="w-4 h-4 ml-1" />
+              إضافة وصفة
+            </Button>
           </Link>
         </div>
       );

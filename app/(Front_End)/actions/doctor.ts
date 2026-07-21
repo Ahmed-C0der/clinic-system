@@ -70,8 +70,10 @@ export async function getDoctorDashboardData() {
                     in: ['scheduled', 'waiting', 'in_progress', "done"]
                 },
                 scheduledAt: {
-                    gte: today
-                }
+                    gte: today, // we must add limit means we must add lte but we need for today only
+                    lte: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+                },
+
             },
             include: {
                 patient: {
@@ -406,4 +408,86 @@ export async function getPatientMedicalFiles(patientId: string, { take = 10, ski
         })
     ]);
     return { success: true, medicalFiles, total };
+}
+
+// doctor record page actions
+
+export async function getDoctorRecords({ take = 10, skip = 0, page = 1 }: { take?: number, skip?: number, page?: number }) {
+    const validateUserData = await validateUser();
+    if (!validateUserData.success) {
+        return { message: validateUserData.message, data: null, success: false }
+    }
+    const doctor = validateUserData.doctor;
+
+    const [totalPatients, patientsData] = await Promise.all([
+        prisma.patient.count({
+            where: {
+                appointments: {
+                    some: {
+                        doctorId: doctor!.id,
+                        status: { in: ['scheduled', 'waiting', 'in_progress', 'done'] }
+                    }
+                }
+            }
+        }),
+        prisma.patient.findMany({
+            where: {
+                appointments: {
+                    some: {
+                        doctorId: doctor!.id,
+                        status: { in: ['scheduled', 'waiting', 'in_progress', 'done'] }
+                    }
+                }
+            },
+            select: {
+                id: true,
+                patientCode: true,
+                name: true,
+                gender: true,
+                bloodType: true,
+                dateOfBirth: true,
+                phone: true,
+                user: {
+                    select: { name: true, profileImg: true }
+                },
+                appointments: {
+                    where: { doctorId: doctor!.id },
+                    select: {
+                        id: true,
+                        scheduledAt: true,
+                        status: true,
+                        _count: { select: { visits: true } }
+                    },
+                    orderBy: { scheduledAt: 'desc' },
+                    take: 1
+                },
+                _count: {
+                    select: {
+                        appointments: {
+                            where: { doctorId: doctor!.id }
+                        }
+                    }
+                }
+            },
+            take,
+            skip,
+            orderBy: { patientCode: 'asc' }
+        })
+    ]);
+
+    const patients = patientsData.map(p => ({
+        id: p.id,
+        patientCode: p.patientCode,
+        name: p.name || p.user?.name || '',
+        gender: p.gender,
+        bloodType: p.bloodType,
+        dateOfBirth: p.dateOfBirth,
+        phone: p.phone,
+        profileImg: p.user?.profileImg,
+        lastAppointment: p.appointments[0]?.scheduledAt || null,
+        lastStatus: p.appointments[0]?.status || null,
+        visitCount: p._count.appointments,
+    }));
+
+    return { success: true, data: { patients, total: totalPatients } }
 }

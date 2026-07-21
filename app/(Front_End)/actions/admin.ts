@@ -1,6 +1,16 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
+import { cookies } from "next/headers"
+import { verifyAccessToken } from "@/lib/auth"
+
+async function validateAdmin(): Promise<void> {
+  const cookiesStore = await cookies();
+  const accessToken = cookiesStore.get('access_token')?.value;
+  if (!accessToken) throw new Error("Unauthorized: No session token found");
+  const payload = verifyAccessToken(accessToken);
+  if (!payload || payload.role !== 'admin') throw new Error("Forbidden: Admin access required");
+}
 
 export type AdminUserRow = {
   id: string
@@ -20,6 +30,7 @@ export type AdminUserRow = {
  * get visitsCount = 0 and no expand affordance.
  */
 export async function getUsersTableData(): Promise<AdminUserRow[]> {
+  await validateAdmin();
   const users = await prisma.user.findMany({
     where: { deletedAt: null },
     include: {
@@ -53,6 +64,7 @@ export async function getUsersTableData(): Promise<AdminUserRow[]> {
 
 /** Medical files belonging to a single patient, most recent first. */
 export async function getPatientMedicalFiles(patientId: string) {
+  await validateAdmin();
   return prisma.medicalFile.findMany({
     where: { patientId },
     orderBy: { uploadedAt: "desc" },

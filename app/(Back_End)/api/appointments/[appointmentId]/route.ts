@@ -37,6 +37,21 @@ export async function GET (req:NextRequest,{ params }: { params: Promise<{ appoi
 /**
  * @openapi
  * /api/appointments/{appointmentId}:
+ *   post:
+ *     summary: Complete an appointment visit
+ *     description: Creates a visit record and marks the appointment as done.
+ *     responses:
+ *       200:
+ *         description: Visit recorded and appointment completed
+ */
+export async function POST (req:NextRequest,{ params }: { params: Promise<{ appointmentId: string }> }){
+    const {appointmentId} = await params
+    return AppointmentsController.completeVisit(req , appointmentId)
+}
+
+/**
+ * @openapi
+ * /api/appointments/{appointmentId}:
  *   delete:
  *     summary: Cancel an appointment
  *     description: Cancels a specific appointment.

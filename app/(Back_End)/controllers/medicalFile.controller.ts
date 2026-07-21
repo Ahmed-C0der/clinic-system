@@ -83,15 +83,18 @@ function buildDateFilter(from?: Date, to?: Date) {
  *   - patient                       → only their own files
  */
 async function assertPatientAccess(
-  auth:      { user: { role: string; patientId?: string } },
+  auth:      { user: { role: string; id: string } },
   patientId: string,
 ) {
   const publicRoles: string[] = [Role.admin, Role.receptionist, Role.doctor];
   if (publicRoles.includes(auth.user.role)) return;
 
   if (auth.user.role === Role.patient) {
-    // Resolve the patient row that belongs to this user
-    if (auth.user.patientId !== patientId) {
+    const patient = await prisma.patient.findUnique({
+      where: { userId: auth.user.id },
+      select: { id: true },
+    });
+    if (!patient || patient.id !== patientId) {
       throw new ForbiddenError("You can only access your own medical files");
     }
     return;

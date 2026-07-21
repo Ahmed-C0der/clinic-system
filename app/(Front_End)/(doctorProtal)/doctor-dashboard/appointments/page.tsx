@@ -8,9 +8,11 @@ import { toast } from 'sonner';
 import Loading from '@/app/MyComponents/Loding';
 
 export default  function DaySchedulePage() {
-  const params = useParams()
-  const {appointmentId} = params;
-  const [date , setDate] = useState<Date|undefined>(undefined);
+  // const params = useParams()
+  // const {appointmentId} = params;
+  const now = new Date()
+  const today = new Date(now.getFullYear(),now.getMonth(),now.getDate())
+  const [date , setDate] = useState<Date|undefined>(today);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading , setLoading] = useState<boolean>(true)
 
@@ -37,18 +39,14 @@ export default  function DaySchedulePage() {
       setLoading(false)
     }
     
-  }, []);
+  }, [date]);
   return loading ? (
     <div className="flex items-center justify-center">
       <Loading />
     </div>
   ) : (
-    appointments.length > 0 ? (
-      <ScheduelClient appointments={appointments} />
-    ) : (
-      <div className="flex items-center justify-center">
-        <p>لا توجد مواعيد اليوم</p>
-      </div>
-    )
+    
+      <ScheduelClient appointments={appointments} date={date} setDate={setDate}/>
+
   )
 }

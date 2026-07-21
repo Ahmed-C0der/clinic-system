@@ -128,12 +128,17 @@ interface DatePickerRtlProps {
   date: Date | undefined
   setDate: React.Dispatch<React.SetStateAction<Date | undefined>>
   language?: "ar" | "en" | "he"
+  // disabled?: { dayOfWeek?: number[], before?: Date | boolean }
+  disabled?: unknown[]
 }
 
-export function DatePickerRtl({ date, setDate, language = "ar" }: DatePickerRtlProps) {
+export function DatePickerRtl({ date, setDate, language = "ar", disabled }: DatePickerRtlProps) {
   const currentTranslation = translations[language]
   const dir = currentTranslation.dir
-
+ const disableDate:any = []
+ if (disabled){
+  disableDate.push(...disabled)
+ }
   const dateFnsLocale =
     language !== "en" ? dateFnsLocales[language as keyof typeof dateFnsLocales] : undefined
   
@@ -164,6 +169,7 @@ export function DatePickerRtl({ date, setDate, language = "ar" }: DatePickerRtlP
           selected={date}
           onSelect={setDate}
           locale={dayPickerLocale}
+          disabled={disableDate}
           initialFocus
         />
       </PopoverContent>

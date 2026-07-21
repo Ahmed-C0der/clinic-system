@@ -7,18 +7,21 @@ import {
   signRefreshToken,
   verifyRefreshToken,
   authenticate,
-  saveTokenInCookies
+  saveTokenInCookies,
+  deleteRefreshToken
 } from '@/lib/auth';
 import { logAction } from '@/lib/audit';
+import { rateLimit, rateLimitKey } from '@/lib/rate-limit';
 import { cookies } from 'next/headers';
 import { sendResetPasswordEmail } from '@/lib/mailer';
 import crypto from 'crypto'
-import { redirect } from 'next/navigation';
 
 const RESET_SECRET =process.env.JWT_SECRET! ;
 
 export class AuthController {
   static async login(req: NextRequest) {
+    const rl = await rateLimit(rateLimitKey(req, 'login'), { max: 5, windowMs: 60 * 1000 });
+    if (rl) return rl;
     try {
       const body = await req.json();
       const { email, password } = body;
@@ -73,13 +76,13 @@ export class AuthController {
         }
       });
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during login' }, { status: 500 });
-      }
+      console.error('Login error:', e);
       return NextResponse.json({ error: 'Server error during login' }, { status: 500 });
     }
   }
   static async register(req: NextRequest) {
+    const rl = await rateLimit(rateLimitKey(req, 'register'), { max: 3, windowMs: 60 * 1000 });
+    if (rl) return rl;
     try {
       const body = await req.json();
       const { email, password, name ,gender} = body;
@@ -146,33 +149,32 @@ export class AuthController {
         }
       });
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during registration' }, { status: 500 });
-      }
+      console.error('Register error:', e);
       return NextResponse.json({ error: 'Server error during registration' }, { status: 500 });
     }
   }
   static async logout(req: NextRequest) {
     try {
       const auth = await authenticate(req);
-      if (auth instanceof NextResponse) {
-        // Even if not logged in, return success on logout
-        return NextResponse.json({ success: true, message: 'Logged out successfully' });
+      const response = NextResponse.redirect(new URL('/login', req.url));
+      response.cookies.delete('access_token');
+      response.cookies.delete('refresh_token');
+
+      if (!(auth instanceof NextResponse)) {
+        await deleteRefreshToken(auth.user.id);
+        await logAction({
+          tableName: 'users',
+          recordId: auth.user.id,
+          action: 'update',
+          oldValue: { status: 'logged_in' },
+          newValue: { status: 'logged_out' },
+          performedBy: auth.user.id
+        });
       }
 
-      await logAction({
-        tableName: 'users',
-        recordId: auth.user.id,
-        action: 'update',
-        oldValue: { status: 'logged_in' },
-        newValue: { status: 'logged_out' },
-        performedBy: auth.user.id
-      });
-      redirect("/login")
+      return response;
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during logout' }, { status: 500 });
-      }
+      console.error('Logout error:', e);
       return NextResponse.json({ error: 'Server error during logout' }, { status: 500 });
     }
   }
@@ -208,9 +210,7 @@ export class AuthController {
       await saveTokenInCookies(access_token)
       return NextResponse.json({ message:"access token have been updated successfully" });
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during refresh token' }, { status: 500 });
-      }
+      console.error('Refresh token error:', e);
       return NextResponse.json({ error: 'Server error during refresh token' }, { status: 500 });
     }
   }
@@ -258,14 +258,14 @@ export class AuthController {
 
       return NextResponse.json({ success: true, message: 'Password changed successfully' });
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during password change' }, { status: 500 });
-      }
+      console.error('Change password error:', e);
       return NextResponse.json({ error: 'Server error during password change' }, { status: 500 });
     }
   }
   // user forget the pw so will receive token in email to reset password
   static async forgotPassword(req: NextRequest) {
+    const rl = await rateLimit(rateLimitKey(req, 'forgot-password'), { max: 3, windowMs: 60 * 1000 });
+    if (rl) return rl;
     try {
       const { email } = await req.json()
 
@@ -301,14 +301,14 @@ export class AuthController {
     success:true, message: 'تم إرسال رابط إعادة تعيين كلمة المرور'
   })
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during forgot password' }, { status: 500 });
-      }
+      console.error('Forgot password error:', e);
       return NextResponse.json({ error: 'Server error during forgot password' }, { status: 500 });
     }
   }
 
   static async resetPassword(req: NextRequest,token:string) {
+    const rl = await rateLimit(rateLimitKey(req, 'reset-password'), { max: 3, windowMs: 60 * 1000 });
+    if (rl) return rl;
   try {
 
     const body = await req.json();
@@ -348,7 +348,8 @@ export class AuthController {
     
     return NextResponse.json({ message: 'تم تغيير كلمة المرور بنجاح' })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Server error' }, { status: 500 });
+    console.error('Reset password error:', e);
+    return NextResponse.json({ error: 'Server error during password reset' }, { status: 500 });
   }
 }
   static async me(req: NextRequest) {
@@ -357,10 +358,8 @@ export class AuthController {
       if (auth instanceof NextResponse) return auth;
       return NextResponse.json({ user: auth.user });
     } catch (e) {
-      if (e instanceof Error) {
-        return NextResponse.json({ error: e.message || 'Server error during get me' }, { status: 500 });
-      }
-      return NextResponse.json({ error: 'Server error during get me' }, { status: 500 });
+      console.error('Get me error:', e);
+      return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
   }
 }

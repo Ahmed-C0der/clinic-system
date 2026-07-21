@@ -5,8 +5,20 @@ import { redis } from './redis';
 import type { AuthContext, accessTokenPayload, refreshTokenPayload } from './models';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-clinic-key-for-jwt-at-least-32-chars-clinic-management'; 
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'refresh-secret-clinic-key-for-jwt-at-least-32-chars-clinic-management';
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Missing ${name} environment variable`);
+    }
+    console.warn(`WARNING: ${name} not set. Using insecure fallback in dev.`);
+    return `dev-fallback-${name}-at-least-32-chars-long!!`;
+  }
+  return value;
+}
+
+const JWT_SECRET = requireEnv('JWT_SECRET');
+const REFRESH_SECRET = requireEnv('REFRESH_SECRET');
 
 
 // --- Redis Session Logic ---
@@ -92,7 +104,7 @@ export async function saveTokenInCookies(token: string, name: string = 'access_t
   const isProd = process.env.NODE_ENV === 'production';
 
   cookiesStore.set(name, token, {
-    httpOnly: process.env.NODE_ENV === "development" ? false : true,
+    httpOnly: true,
     secure: isProd,
     sameSite: 'strict',
     maxAge: isRefreshToken ? 60 * 60 * 24 * 7 : 60 * 15,
@@ -104,4 +116,19 @@ export async function saveTokenInCookies(token: string, name: string = 'access_t
 export async function deleteAccessToken(): Promise<void> {
   const cookiesStore = await cookies();
   cookiesStore.delete('access_token');
+}
+
+
+
+export async function getCurrentUserId() : Promise<string|null>{
+  const cookiesStore = await cookies();
+  const accessToken = cookiesStore.get('access_token')?.value;
+  if (!accessToken) {
+    return null;
+  }
+  const payload = verifyAccessToken(accessToken);
+  if (!payload) {
+    return null;
+  }
+  return payload.id;
 }

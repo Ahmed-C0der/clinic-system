@@ -1,17 +1,25 @@
-import { SidebarProvider } from "@/components/ui/sidebar"
-import AdminSidebar from "./_components/AdminSidebar"
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { verifyAccessToken } from "@/lib/auth";
+import { AdminSidebar } from "./_components/layout/admin-sidebar";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const cookiesStore = await cookies();
+  const accessToken = cookiesStore.get("access_token")?.value;
+  if (!accessToken) redirect("/login");
+  const payload = verifyAccessToken(accessToken);
+  if (!payload || payload.role !== "admin") redirect("/login");
+
   return (
-    <main dir="rtl" className="bg-surface min-h-screen">
-      <SidebarProvider>
+    <div dir="rtl" className="flex min-h-screen bg-[#fcf8fb]">
+      <div className="flex flex-1 flex-row ">
         <AdminSidebar />
-        <div className="w-full">
-          <div className="container mx-auto p-6 md:p-8 lg:p-10">
-            {children}
-          </div>
-        </div>
-      </SidebarProvider>
-    </main>
-  )
+        <main className="flex-1 p-6">{children}</main>
+      </div>
+    </div>
+  );
 }

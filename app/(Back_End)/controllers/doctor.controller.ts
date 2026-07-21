@@ -235,9 +235,9 @@ export class Doctor {
     }
 
     // ── Availability filter — fetch ALL matching doctors first, then page ──
-    // FIX #3: paginate AFTER filtering so meta is accurate
     const allDoctors = await prisma.doctor.findMany({
       where,
+      take: 200,
       select: {id: true,
             bio: true,
             user: { select: { id: true, name: true } },

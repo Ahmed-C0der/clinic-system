@@ -9,6 +9,7 @@ export default async function AppointmentsPage() {
   let appointmentsData = null;
   try {
     appointmentsData = await getPatientAppointments();
+    console.log("Appointments data:", appointmentsData);
   } catch (error) {
     console.error("Error loading patient appointments page data:", error);
   }

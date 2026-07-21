@@ -1,3 +1,4 @@
+"use client"
 import React, { useActionState } from 'react'
 import { UploadImg } from '../(Front_End)/actions/imgProfile'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -8,9 +9,9 @@ import { RefreshCw } from 'lucide-react'
 
 interface EditableAvatarProps {
     name?: string;
-    profileImg?: string;
+    src?: string;
 }
-export default function EditableAvatar({ name, profileImg }: EditableAvatarProps) {
+export default function EditableAvatar({ name, src }: EditableAvatarProps) {
       const [state , actionImg , isPendingImg]=useActionState(
         UploadImg,
         null
@@ -23,8 +24,8 @@ export default function EditableAvatar({ name, profileImg }: EditableAvatarProps
                 <Field>
                   <FieldLabel htmlFor="picture">
                     <Avatar className="w-24 h-24 border-4 border-white shadow-md">
-                  {profileImg || state?.userImg ? (
-                    <AvatarImage src={ state?.userImg||profileImg} alt={name} className="object-cover" />
+                  {src || state?.userImg ? (
+                    <AvatarImage src={ state?.userImg||src} alt={name} className="object-cover" />
                   ) : null}
                   <AvatarFallback className="bg-[#1A6B5A] text-white text-2xl font-bold font-cairo">
                     {name?.slice(0, 2) || "مر"}

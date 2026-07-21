@@ -15,7 +15,8 @@ import Image from "next/image";
 import Link from "next/link";
 import TopServices from "./MyComponents/topServices";
 import TestimonialsCard from "./MyComponents/TestimonialsCard";
-import  Loading  from "./MyComponents/Loding";
+import Loading from "./MyComponents/Loding";
+import MyNave from "./(Front_End)/(public pages)/myNave";
 
 
 
@@ -56,17 +57,20 @@ function StepItem({
   description: string;
 }) {
   return (
-    <div className="space-y-4 flex flex-col items-center">
-      <div
-        className={`w-16 h-16 rounded-full ${color} text-white flex items-center justify-center text-xl font-bold font-heading shadow-md`}
-      >
-        {number}
+    <>
+      <div className="space-y-4 flex flex-col items-center">
+
+        <div
+          className={`w-16 h-16 rounded-full ${color} text-white flex items-center justify-center text-xl font-bold font-heading shadow-md`}
+        >
+          {number}
+        </div>
+        <h3 className="text-lg font-bold font-heading text-gray-800">{title}</h3>
+        <p className="text-gray-500 font-body text-xs max-w-xs leading-relaxed text-center">
+          {description}
+        </p>
       </div>
-      <h3 className="text-lg font-bold font-heading text-gray-800">{title}</h3>
-      <p className="text-gray-500 font-body text-xs max-w-xs leading-relaxed text-center">
-        {description}
-      </p>
-    </div>
+    </>
   );
 }
 
@@ -78,6 +82,8 @@ export default function Homepage() {
 
   return (
     <div className="animate-fade-in text-[#1C1C1E] bg-[#F9FAFB] min-h-screen">
+      <MyNave />
+      
       {/* ── Hero ── */}
       <section className="relative bg-gradient-to-br from-emerald-50/70 via-white to-transparent py-12 md:py-20 px-4 md:px-8 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -131,7 +137,7 @@ export default function Homepage() {
               <Card className="p-3 max-w-sm border-emerald-50 shadow-lg">
                 <CardContent className="p-0">
                   <Image
-                    src="/doctor-1.jpg"
+                    src="/doctor-1.webp"
                     alt="الطبيب المعالج"
                     referrerPolicy="no-referrer"
                     className="rounded-xl w-full h-80 object-cover"

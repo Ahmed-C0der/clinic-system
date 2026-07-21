@@ -25,7 +25,7 @@ export default function ForgotPassword() {
     useEffect(() => {
         if (state?.success) {
             toast.success("تم ارسال بريد الكتروني لتأكيد التغيير")
-            router.push("/reset-password")
+            // router.push("/reset-password")
         }
     }, [state?.success, router])
 

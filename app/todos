@@ -1,0 +1,15 @@
+TODO: put and test book component that you have downloaded it from claude // done
+TODO: do the same for receptionist components // done
+TODO: in doctorDashboard coonect button `بدا الحجز` to appointment/[appointmentId]
+TODO: in appointment/[appointmentId] build server actions to post new visit , change appointment.status to done , fetch("/api/appointment/${appointmentId}",{
+    method: "POST",
+    cookies: `access_token = ${access_token}`
+
+})
+TODO: fix adminAvatar //done
+
+TODO: build doctor profile component
+
+TODO: test book pages , receptionist page 
+
+TODO: in step 2 in book component i must get doctor schedule to ensure when user select data it's alredy exist

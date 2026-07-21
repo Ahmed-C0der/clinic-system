@@ -7,6 +7,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth";
 import { InvoiceStatus, PaymentMethod, Role } from "@/lib/generated/prisma/enums";
 
+/** Resolve a patient's DB id from the authenticated user's id (only for patient role). */
+async function getPatientIdFromUserId(userId: string): Promise<string | null> {
+  const patient = await prisma.patient.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return patient?.id ?? null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom error classes (reuse pattern from doctor.controller.ts)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -239,8 +248,11 @@ export class InvoicesController {
     if (!invoice) throw new NotFoundError("Invoice not found");
 
     // Patients may only read their own invoices
-    if (auth.user.role === Role.patient && invoice.patientId !== auth.user.patientId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (auth.user.role === Role.patient) {
+      const ownPatientId = await getPatientIdFromUserId(auth.user.id);
+      if (!ownPatientId || invoice.patientId !== ownPatientId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     return NextResponse.json({ invoice });
@@ -354,8 +366,11 @@ export class InvoicesController {
 
     if (!invoice) throw new NotFoundError("Invoice not found");
 
-    if (auth.user.role === Role.patient && invoice.patientId !== auth.user.patientId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (auth.user.role === Role.patient) {
+      const ownPatientId = await getPatientIdFromUserId(auth.user.id);
+      if (!ownPatientId || invoice.patientId !== ownPatientId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const pdfPayload = {

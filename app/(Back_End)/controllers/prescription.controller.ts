@@ -66,7 +66,7 @@ export class PrescriptionService {
 
 
   static async list(req: NextRequest) {
-    const auth = authenticate(req, [Role.admin , Role.doctor , Role.receptionist , Role.patient])
+    const auth = await authenticate(req, [Role.admin , Role.doctor , Role.receptionist , Role.patient])
     if (auth instanceof NextResponse) return auth
     const { page, limit, skip } = getPaginationParams(req)
 
@@ -106,7 +106,7 @@ export class PrescriptionService {
   // ---------------- Create ----------------
 
   static async create(req: NextRequest,input: unknown) {
-    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    const auth = await authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
     const data = createPrescriptionSchema.parse(input);
     const visit = await prisma.visit.findFirst({
@@ -128,7 +128,7 @@ export class PrescriptionService {
   // ---------------- Read ----------------
 
   static async getById( req: NextRequest,id: string,authUsers:string[]) {
-    const auth = authenticate(req, authUsers.length>0 ? authUsers : [Role.admin,Role.doctor, Role.receptionist])
+    const auth = await authenticate(req, authUsers.length>0 ? authUsers : [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
     const prescription = await prisma.prescription.findFirst({
       where: { id, deletedAt: null },
@@ -143,7 +143,7 @@ export class PrescriptionService {
   static async updateNotes(req: NextRequest,id: string, input: unknown,) {
     const { notes } = updateNotesSchema.parse(input);
     await this.assertExists(id);
-    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    const auth = await authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
     return prisma.prescription.update({
       where: { id },
@@ -155,7 +155,7 @@ export class PrescriptionService {
   // ---------------- PDF export ----------------
 
   static async generatePdf( req: NextRequest, id: string) {
-    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist,Role.patient])
+    const auth = await authenticate(req, [Role.admin,Role.doctor, Role.receptionist,Role.patient])
     if (auth instanceof NextResponse) return auth
     const medicalFile = await generatePrescriptionPDF(id);
     return NextResponse.json({
@@ -167,7 +167,7 @@ export class PrescriptionService {
   // ---------------- Item sub-resource ----------------
 
   static async addItem(req: NextRequest,prescriptionId: string, input: unknown) {
-    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    const auth = await authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
     const data = prescriptionItemSchema.parse(input);
     await this.assertExists(prescriptionId);
@@ -178,7 +178,7 @@ export class PrescriptionService {
   }
 
   static async updateItem(req: NextRequest,prescriptionId: string, itemId: string, input: unknown) {
-    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    const auth = await authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
     const data = updateItemSchema.parse(input);
     if (Object.keys(data).length === 0) {
@@ -193,7 +193,7 @@ export class PrescriptionService {
   }
 
   static async removeItem(req:NextRequest,prescriptionId: string, itemId: string) {
-    const auth = authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
+    const auth = await authenticate(req, [Role.admin,Role.doctor, Role.receptionist])
     if (auth instanceof NextResponse) return auth
     await this.assertItemBelongsTo(prescriptionId, itemId);
 

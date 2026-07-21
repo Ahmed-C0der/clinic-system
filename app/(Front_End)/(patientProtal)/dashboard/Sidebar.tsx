@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, Calendar, ClipboardList, User, LogOut, SidebarClose } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import MyAvater from "@/app/MyComponents/myAvater";
 
 
 interface SidebarProps {
@@ -25,9 +26,18 @@ interface SidebarProps {
   } | null;
 }
 
-export default function MySidebar({ patient }: SidebarProps) {
+export default function MyPatientSidebar({ patient }: SidebarProps) {
   const pathname = usePathname();
-
+  const router = useRouter();
+  const onLogout = async (e: React.SubmitEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/auth/logout',{
+      method: 'POST',
+    });
+    if (res.ok) {
+      router.push('/login');
+    }
+  }
   const navItems = [
     {
       name: "الرئيسية",
@@ -63,14 +73,8 @@ export default function MySidebar({ patient }: SidebarProps) {
 
         {/* Patient Profile Card Header */}
         <SidebarHeader className="p-6 border-b border-slate-50 flex flex-col items-center text-center">
-          <Avatar className="w-20 h-20 border-2 border-[#2DBFA0]/30 shadow-md transition-transform duration-300 hover:scale-105">
-            {patient?.profileImg ? (
-              <AvatarImage src={patient.profileImg} alt={patient.name} className="object-cover" />
-            ) : null}
-            <AvatarFallback className="bg-[#1A6B5A] text-white text-xl font-bold font-cairo">
-              {patient?.name?.slice(0, 2) || "مر"}
-            </AvatarFallback>
-          </Avatar>
+          <MyAvater src={patient?.profileImg || undefined} fallback={patient?.name || "..."} className="w-20 h-20 border-2 border-[#2DBFA0]/30 shadow-md transition-transform duration-300 hover:scale-105" />
+          
 
           <h3 className="font-cairo font-bold text-lg mt-4 text-white tracking-wide">
             {patient?.name || "تحميل..."}
@@ -85,40 +89,38 @@ export default function MySidebar({ patient }: SidebarProps) {
           <SidebarGroup>
             <SidebarMenu className="flex-1 p-4 space-y-1.5 mt-4">
               {navItems.map((item) => {
-  const Icon = item.icon;
-  return (
-    <SidebarMenuItem key={item.href}>
-      <SidebarMenuButton
-        asChild
-        isActive={item.isActive}
-        className={`w-full font-sans text-sm font-semibold transition-all duration-300 relative group overflow-hidden ${
-          item.isActive
-            ? "bg-[#2DBFA0]/20 text-white hover:bg-[#2DBFA0]/30"
-            : "text-slate-300 hover:bg-white/5 hover:text-white"
-        }`}
-      >
-        <Link href={item.href} className="flex items-center w-full gap-2">
-          {item.isActive && (
-            <span className="absolute right-0 top-0 bottom-0 w-1.5 bg-[#2DBFA0] rounded-l-full" />
-          )}
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={item.isActive}
+                      className={`w-full font-sans text-sm font-semibold transition-all duration-300 relative group overflow-hidden ${item.isActive
+                          ? "bg-[#2DBFA0]/20 text-white hover:bg-[#2DBFA0]/30"
+                          : "text-slate-300 hover:bg-white/5 hover:text-white"
+                        }`}
+                    >
+                      <Link href={item.href} className="flex items-center w-full gap-2">
+                        {item.isActive && (
+                          <span className="absolute right-0 top-0 bottom-0 w-1.5 bg-[#2DBFA0] rounded-l-full" />
+                        )}
 
-          <Icon
-            className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${
-              item.isActive ? "text-[#2DBFA0]" : "text-slate-400 group-hover:text-white"
-            }`}
-          />
-          <span className="font-cairo text-sm font-medium">{item.name}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-})}
+                        <Icon
+                          className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${item.isActive ? "text-[#2DBFA0]" : "text-slate-400 group-hover:text-white"
+                            }`}
+                        />
+                        <span className="font-cairo text-sm font-medium">{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter className="border-t border-slate-50">
           {/* Footer / Log out */}
-          <form action="/api/auth/logout" method="POST">
+          <form onSubmit={onLogout} >
             <Button
               type="submit"
               variant="ghost"

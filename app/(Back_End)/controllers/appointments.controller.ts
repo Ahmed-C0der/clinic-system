@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { authenticate } from '@/lib/auth';
 import { logAction } from '@/lib/audit';
 import { getPaginationParams } from '@/lib/utils';
-import { AppointmentStatus, AppointmentType, Prisma, PrismaClient } from '@/lib/generated/prisma/client';
+import { AppointmentStatus, AppointmentType, Prisma, PrismaClient, Role } from '@/lib/generated/prisma/client';
 
 export class AppointmentsController {
 
@@ -96,13 +96,8 @@ export class AppointmentsController {
         return NextResponse.json({ error: 'A record with this combination already exists' }, { status: 400 });
       }
     }
-    if (e instanceof Error) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
-    }
-    // Log the full error for debugging
     console.error('Error handling appointment: ', e);
-    // Return a generic 500 error for unexpected issues
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
   static async list(
     req: NextRequest, doctorId: string, patientId: string, status?: AppointmentStatus,
@@ -231,17 +226,14 @@ export class AppointmentsController {
         }
       });
     } catch (e: any) {
-      if (e instanceof Error) {
-
-        return NextResponse.json({ error: e.message }, { status: 500 });
-      }
-      return NextResponse.json({ error: e, Message: 'Server error' }, { status: 500 });
+      console.error('Appointment error:', e);
+      return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
   }
 
   static async book(req: NextRequest) {
     try {
-      const auth = await authenticate(req, ['admin', 'receptionist', 'patient']);
+      const auth = await authenticate(req, [Role.admin, Role.receptionist, Role.patient]);
       if (auth instanceof NextResponse) return auth;
 
       const body = await req.json();
@@ -278,7 +270,7 @@ export class AppointmentsController {
 
       const appointment = await prisma.appointment.create({
         data: {
-          scheduledAt: new Date(),
+          scheduledAt: scheduledDate,
           type: (type as AppointmentType) || 'new',
           notes: notes,
           status: "scheduled",
@@ -444,6 +436,55 @@ export class AppointmentsController {
       return NextResponse.json({ success: true, message: 'Appointment cancelled successfully' });
     } catch (e: any) {
       return this.catchError(e)
+    }
+  }
+
+  static async completeVisit(req: NextRequest, id: string) {
+    try {
+      const auth = await authenticate(req, ['doctor', 'admin', 'receptionist']);
+      if (auth instanceof NextResponse) return auth;
+
+      const appointment = await prisma.appointment.findUnique({
+        where: { id }
+      });
+
+      if (!appointment) {
+        return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
+      }
+
+      const body = await req.json();
+      const { chiefComplaint, diagnosis, notes, weightKg, heightCm, bloodPressure, temperatureC } = body;
+
+      const [visit] = await prisma.$transaction([
+        prisma.visit.create({
+          data: {
+            appointmentId: id,
+            chiefComplaint: chiefComplaint || null,
+            diagnosis: diagnosis || null,
+            notes: notes || null,
+            weightKg: weightKg ? Number(weightKg) : null,
+            heightCm: heightCm ? Number(heightCm) : null,
+            bloodPressure: bloodPressure || null,
+            temperatureC: temperatureC ? Number(temperatureC) : null,
+          },
+        }),
+        prisma.appointment.update({
+          where: { id },
+          data: { status: 'done' },
+        }),
+      ]);
+
+      await logAction({
+        tableName: 'appointments',
+        recordId: id,
+        action: 'complete_visit',
+        newValue: visit,
+        performedBy: auth.user.id,
+      });
+
+      return NextResponse.json({ success: true, visit });
+    } catch (e: any) {
+      return this.catchError(e);
     }
   }
 

@@ -90,6 +90,7 @@ export default function SelectDoctor() {
         if (!res.ok) return console.log("Unexpected Error , status code : " + res.status)
         const body: PaginatedDoctorsResponse = await res.json()
         if (!body.success) { setDoctors([]); return setError("UnExpected Error ; try later") }
+        console.log("doctors", body.data)
         setDoctors(body.data)
         setSpeciality(body.data.map((doctor: DoctorEntry) => doctor.specialty || ""))
       } catch (error) {
@@ -157,8 +158,10 @@ export default function SelectDoctor() {
                 doctors.map((doctor: DoctorEntry) => (
                   <Card key={doctor.id} className="shadow-sm rounded-lg border-border bg-white">
                     <div className="relative mx-(--card-spacing) mt-(--card-spacing) aspect-[4/3] overflow-hidden rounded-lg">
+                      
                       <Image
-                        src={doctor.user.profileImg || doctor.user.gender === Gender.female ? "/doctor_female.png" : "/doctor_male.png"}
+                      src={doctor.user.profileImg ? doctor.user.profileImg :doctor.user.gender === Gender.female ? "/doctor_female.png" : "/doctor_male.png" }
+                        // src={doctor.user.profileImg ?? }
                         alt={doctor.user.name}
                         fill
                         className="object-cover"

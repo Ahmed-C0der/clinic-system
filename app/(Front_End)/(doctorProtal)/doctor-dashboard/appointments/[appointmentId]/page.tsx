@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import PatientDetailClient from './patientDetailClient';
 import { allPatientVisit } from '@/app/(Front_End)/actions/doctor';
+import Loading from '@/app/MyComponents/Loding';
 
 export type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
   include: {
@@ -34,25 +35,30 @@ async function getAppointmentDetails(appointmentId: string) {
       Cookie: `access_token=${token}`,
     },
   });
-
+  console.log("res",res)
   if (!res.ok) return null;
 
   const data = await res.json();
-  return data.appointment as AppointmentWithRelations | null;
+  return data as AppointmentWithRelations | null;
 }
 export default async function PatientDetailPage({ params }: { params: Promise<{ appointmentId: string }> }) {
     const { appointmentId } = await params
+    let loading = true;
     const appointment = await getAppointmentDetails(appointmentId);
-    const visits = await allPatientVisit(appointment?.patientId!)
+    const dataVisits = await allPatientVisit(appointment?.patientId!)
+    console.log(dataVisits)
+    loading = false
   return(
     <>
-    {appointment ? (
-        <PatientDetailClient patientData={appointment.patient} appointmentId={appointmentId} visits = {visits} />
-    ) : (
-        <div>
-            <h1>لم يتم العثور علي هذا الموعد</h1>
-        </div>
-    )}
+        {loading ? (
+            <div className="flex items-center justify-center">
+                <Loading />
+            </div>
+        ) : (
+          appointment ?  
+            <PatientDetailClient patientData={appointment.patient} appointmentId={appointmentId} visits = {dataVisits.visits} />
+          : <div> لم يتم العثور علي الموعد</div>  
+        )}
     </>
   )
 }

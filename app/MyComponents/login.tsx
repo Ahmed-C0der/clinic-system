@@ -24,6 +24,8 @@ import { toast } from "sonner"
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { useUserStore } from '../(Front_End)/sotres/userStore'
+import { Role } from '@/lib/generated/prisma/enums'
 interface LoginState {
     message: string;
     error?: any;
@@ -47,22 +49,24 @@ function Login() {
         initialState,
 
     )
+      const {setUser:setUserGlobal } = useUserStore((state)=>state)
 
-    useEffect(() => {
-        fetch("/api/auth/me")
-            .then(res => res.ok && res.json().then(data => {
-                if (data?.user?.role) {
-                    const roleMap: Record<string, string> = {
-                        admin: "/dashboard",
-                        doctor: "/doctor-dashboard",
-                        patient: "/dashboard",
-                        receptionist: "/receptionist-dashboard",
-                    }
-                    window.location.href = roleMap[data.user.role] || "/dashboard"
-                }
-            }))
-            .catch(() => {})
-    }, [])
+
+    // useEffect(() => {
+    //     fetch("/api/auth/me")
+    //         .then(res => res.ok && res.json().then(data => {
+    //             if (data?.user?.role) {
+    //                 const roleMap: Record<string, string> = {
+    //                     admin: "/analytics",
+    //                     doctor: "/doctor-dashboard",
+    //                     patient: "/dashboard",
+    //                     receptionist: "/receptionist",
+    //                 }
+    //                 window.location.href = roleMap[data.user.role] || "/login"
+    //             }
+    //         }))
+    //         .catch(() => {})
+    // }, [])
 
     useEffect(() => {
         if (state?.error) {
@@ -72,11 +76,12 @@ function Login() {
     useEffect(()=>{
         if(state?.success){
             toast.success(state.message);
+            setUserGlobal({id:state.user!.id, email:state.user!.email, name:state.user!.name, role:state.user!.role});
             switch (state.user.role){
-                case "admin" : redirect("/dashboard")
-                case "doctor" : redirect("/doctor-dashboard")
-                case "patient" : redirect("/dashboard")
-                case "receptionist" : redirect("/receptionist-dashboard")
+                case Role.admin : redirect("/analytics")
+                case Role.doctor : redirect("/doctor-dashboard")
+                case Role.patient : redirect("/dashboard")
+                case Role.receptionist : redirect("/receptionist")
             }
 
         }

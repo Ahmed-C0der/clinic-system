@@ -1,6 +1,7 @@
 "use client"
 import React from 'react'
 import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
 import { ActivityIcon, CalendarCheck, Users } from 'lucide-react'
 import { Prisma } from '@/lib/generated/prisma/client';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
@@ -58,66 +59,59 @@ export default function PatientClient({ data }: { data: { patientsData: Patients
     notes: item.notes,
   }));
   return (
-    <main>
-      <section>
-
-        <div className="flex flex-row justify-between items-center md:justify-normal md:flex-col  gap-4">
-          <div className="title">
-            <h1 className="text-2xl font-bold text-on-surface">قائمة المرضى</h1>
-            <p className="text-muted-foreground text-sm">عرض شامل لجميع بيانات المرضى</p>
-          </div>
-          {/* search input */}
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex-1">
-              {/* FIXME: add pagination */}
-              <Input
-                type="text"
-                placeholder="البحث عن طريق الاسم أو رقم المريض"
-                value={searchParams.get("search") || ""}
-                onChange={(e) => setSearchParams(e.target.value)}
-              />
-
-            </div>
-            {/* TODO: add button to add a new doctor this is an additional feature depending to a decision of the client and the clinic owner  */}
-          </div>
-
+    <main className="p-6 space-y-6">
+      <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-bold text-on-surface">قائمة المرضى</h1>
+          <p className="text-sm text-on-surface/60">عرض شامل لجميع بيانات المرضى</p>
+        </div>
+        <div className="relative w-full md:w-72">
+          <Input
+            type="text"
+            placeholder="البحث عن طريق الاسم أو رقم المريض"
+            value={searchParams.get("search") || ""}
+            onChange={(e) => setSearchParams(e.target.value)}
+            className="pr-4 rounded-[8px] border-border text-right"
+          />
         </div>
       </section>
-      <section>
-        <div className="state grid-cols-auto-fill gap-4">
-          <div className="state total-patient flex justify-between items-center gap-4">
-            <div className="info">
-              <h1 className='text-2xl font-bold text-on-surface'>اجمالي المرضي</h1>
-              {/* FIXME: add patient count after set server action */}
-              <p className='text-muted-foreground text-sm'>{patientCount}</p>
+
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <Card>
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <h1 className="text-sm text-on-surface/60">إجمالي المرضى</h1>
+              <p className="text-[22px] font-bold text-on-surface">{patientCount}</p>
             </div>
-            <div className="icon">
-              <Users className='text-on-surface size-12' />
+            <div className="p-3 rounded-lg bg-[rgba(45,191,160,0.15)] text-primary">
+              <Users className="w-6 h-6" />
             </div>
-          </div>
-          <div className="state active-patient flex justify-between items-center gap-4">
-            <div className="info">
-              <h1 className='text-2xl font-bold text-on-surface'>حالات نشطة</h1>
-              {/* FIXME: add patient count after set server action */}
-              <p className='text-muted-foreground text-sm'>{activeCasesCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <h1 className="text-sm text-on-surface/60">حالات نشطة</h1>
+              <p className="text-[22px] font-bold text-on-surface">{activeCasesCount}</p>
             </div>
-            <div className="icon">
-              <ActivityIcon className='text-on-surface size-12' />
+            <div className="p-3 rounded-lg bg-[rgba(45,191,160,0.15)] text-primary">
+              <ActivityIcon className="w-6 h-6" />
             </div>
-          </div>
-          <div className="state new-patient flex justify-between items-center gap-4">
-            <div className="info">
-              <h1 className='text-2xl font-bold text-on-surface'>مواعيد جديدة</h1>
-              {/* FIXME: add patient count after set server action */}
-              <p className='text-muted-foreground text-sm'>{appointmentsCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <h1 className="text-sm text-on-surface/60">مواعيد جديدة</h1>
+              <p className="text-[22px] font-bold text-on-surface">{appointmentsCount}</p>
             </div>
-            <div className="icon">
-              <CalendarCheck className='text-on-surface size-12' />
+            <div className="p-3 rounded-lg bg-[rgba(45,191,160,0.15)] text-primary">
+              <CalendarCheck className="w-6 h-6" />
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </section>
-      {/* patients data */}
+
       <section>
         <DataTable columns={columns} data={formattedPatients} />
       </section>

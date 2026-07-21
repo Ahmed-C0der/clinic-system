@@ -17,6 +17,7 @@ import { updatePatientProfile } from "@/app/(Front_End)/actions/patient";
 import { Gender } from "@/lib/generated/prisma/client";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { UploadImg } from "@/app/(Front_End)/actions/imgProfile";
+import EditableAvatar from "@/app/MyComponents/editableAvatar";
 
 interface ProfileClientProps {
   initialData: any;
@@ -309,7 +310,7 @@ export default function ProfileClient({ initialData }: ProfileClientProps) {
 
               {/* Profile Avatar absolute overlay */}
               <div className="flex justify-center -mt-12 mb-4">
-                <form action={actionImg}>
+                {/* <form action={actionImg}>
 
                 <Field>
                   <FieldLabel htmlFor="picture">
@@ -340,8 +341,8 @@ export default function ProfileClient({ initialData }: ProfileClientProps) {
                     <span>حفظ التغييرات</span>
                   )}
                 </Button>
-                </form>
-
+                </form> */}
+              <EditableAvatar src={profileImg} name={name} />
               </div>
 
               <div className="space-y-1">

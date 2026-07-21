@@ -360,7 +360,7 @@ export async function getPatientAppointments(patientId?: string) {
     ).sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime()); // Ascending for upcoming
 
     const past = formattedAppointments.filter(
-      app => !(['scheduled', 'waiting', 'in_progress'].includes(app.status) && app.scheduledAt >= now)
+      app => (['done'].includes(app.status) && app.scheduledAt >= now)
     ); // Descending for past (as queried)
 
     return {

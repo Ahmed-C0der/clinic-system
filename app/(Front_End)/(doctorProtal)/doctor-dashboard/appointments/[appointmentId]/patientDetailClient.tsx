@@ -248,6 +248,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { calculateAge } from '@/lib/additional'
+import MyAvater from '@/app/MyComponents/myAvater'
 
 type Patient = {
     name: string;
@@ -431,10 +432,19 @@ export default function PatientDetailClient({ patientData, appointmentId, visits
                 }
             })
 
-            const res = await fetch(`/api/doctor/visit`, {
+            const res = await fetch(`/api/appointments/${appointmentId}`, {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: formData,
+                body: JSON.stringify({
+                    chiefComplaint: visitBody.chiefComplaint,
+                    diagnosis: visitBody.diagnosis,
+                    notes: visitBody.notes,
+                    weightKg: visitBody.weightKg,
+                    heightCm: visitBody.heightCm,
+                    temperatureC: visitBody.temperatureC,
+                    bloodPressure: visitBody.bloodPressure,
+                }),
             })
             const data = await res.json()
 
@@ -468,19 +478,16 @@ export default function PatientDetailClient({ patientData, appointmentId, visits
         return patientData.gender === "male" ? "ذكر" : patientData.gender === "female" ? "أنثى" : String(patientData.gender)
     }, [patientData])
 
-    const visibleVisits = visits.slice(0, visitsToShow)
-    const hasMoreVisits = visitsToShow < visits.length
+    const visibleVisits = visits?.length > 0 ? visits.slice(0, visitsToShow) : []
+    const hasMoreVisits = visits?.length > visitsToShow
 
     return (
         <main>
             <header>
                 <Card>
                     <CardContent>
-                        <div className="state-1 flex items-center gap-4">
-                            <Avatar className="h-24 w-24">
-                                {patientImg && <AvatarImage src={patientImg} />}
-                                <AvatarFallback>{patientData?.name?.slice(0, 2)}</AvatarFallback>
-                            </Avatar>
+                        <div className="state-1 flex items-center gap-4"> {/* claName="h-24 w-24"*/}
+                            <MyAvater src={patientImg|| undefined} fallback={patientData?.name?.slice(0,2)}  />
                             <div className="info flex flex-col ">
                                 <h1 className="text-xl font-bold">{patientData?.name}</h1>
                                 <div className="extra flex items-center gap-2">
@@ -654,37 +661,37 @@ export default function PatientDetailClient({ patientData, appointmentId, visits
                                     <p className="text-sm text-muted-foreground">لم تتم إضافة أي أدوية بعد</p>
                                 )}
                                 {visitBody.medicines.map((med, index) => (
-                                    <div key={index} className="flex flex-wrap items-center gap-3 border rounded-md p-3">
-                                        <input
+                                    <div key={index} className="flex flex-wrap items-center gap-3 border border-border rounded-[8px] p-3">
+                                        <Input
                                             type="text"
                                             placeholder="اسم الدواء"
                                             value={med.name}
                                             onChange={(e) => updateMedicineField(index, "name", e.target.value)}
-                                            className="border rounded px-2 py-1 flex-1 min-w-[120px]"
+                                            className="flex-1 min-w-[120px]"
                                             required
                                         />
-                                        <input
+                                        <Input
                                             type="text"
                                             placeholder="الجرعة"
                                             value={med.dosage}
                                             onChange={(e) => updateMedicineField(index, "dosage", e.target.value)}
-                                            className="border rounded px-2 py-1 flex-1 min-w-[100px]"
+                                            className="flex-1 min-w-[100px]"
                                         />
-                                        <input
+                                        <Input
                                             type="text"
                                             placeholder="المدة"
                                             value={med.duration}
                                             onChange={(e) => updateMedicineField(index, "duration", e.target.value)}
-                                            className="border rounded px-2 py-1 flex-1 min-w-[100px]"
+                                            className="flex-1 min-w-[100px]"
                                         />
-                                        <input
+                                        <Input
                                             type="text"
                                             placeholder="عدد المرات"
                                             value={med.frequency}
                                             onChange={(e) => updateMedicineField(index, "frequency", e.target.value)}
-                                            className="border rounded px-2 py-1 flex-1 min-w-[100px]"
+                                            className="flex-1 min-w-[100px]"
                                         />
-                                        <input
+                                        <Input
                                             type="file"
                                             accept="image/*,application/pdf"
                                             onChange={(e) => updateMedicineFile(index, e.target.files?.[0] ?? null)}
@@ -704,7 +711,7 @@ export default function PatientDetailClient({ patientData, appointmentId, visits
                             </CardContent>
                         </Card>
 
-                        <Button type="submit" disabled={submitting}>
+                        <Button type="submit" disabled={submitting} className="bg-accent text-white hover:bg-[#26a88d] rounded-[8px] h-10 px-4 text-sm font-semibold">
                             {submitting ? (
                                 <>
                                     <Loader2 className="w-4 h-4 ml-2 animate-spin" />
@@ -725,7 +732,7 @@ export default function PatientDetailClient({ patientData, appointmentId, visits
                         <ScrollArea className="h-[500px] pl-2">
                             <div className="flex flex-col gap-3">
                                 {visibleVisits.length === 0 && (
-                                    <p className="text-sm text-muted-foreground">لا توجد زيارات سابقة</p>
+                                    <p className="text-sm text-on-surface/60">لا توجد زيارات سابقة</p>
                                 )}
                                 {visibleVisits.map((visit) => (
                                     <Card key={visit.id}>

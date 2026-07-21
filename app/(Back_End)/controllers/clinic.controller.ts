@@ -14,8 +14,8 @@ export class Clinic {
             });
             return NextResponse.json(testimonials ?? [], { status: 200 });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -151,8 +151,8 @@ export class Clinic {
 
             return NextResponse.json(result);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -188,8 +188,8 @@ export class Clinic {
 
             return NextResponse.json(service, { status: 201 });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -235,8 +235,8 @@ export class Clinic {
 
             return NextResponse.json(service);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -283,8 +283,8 @@ export class Clinic {
 
             return NextResponse.json({ message: 'Service deactivated successfully' });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -315,8 +315,8 @@ export class Clinic {
 
             return NextResponse.json(doctorServices);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -392,8 +392,8 @@ export class Clinic {
 
             return NextResponse.json(doctorService, { status: 201 });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -444,8 +444,8 @@ export class Clinic {
 
             return NextResponse.json(doctorService);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -493,8 +493,8 @@ export class Clinic {
 
             return NextResponse.json({ message: 'Doctor service deactivated successfully', doctorService });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -513,8 +513,8 @@ export class Clinic {
             });
             return NextResponse.json(commonQuestions);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -529,8 +529,8 @@ export class Clinic {
             }
             return NextResponse.json(commonQuestion);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -563,8 +563,8 @@ export class Clinic {
 
             return NextResponse.json(commonQuestion, { status: 201 });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -603,8 +603,8 @@ export class Clinic {
 
             return NextResponse.json(commonQuestion);
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 
@@ -631,8 +631,8 @@ export class Clinic {
 
             return NextResponse.json({ message: 'Common question deleted successfully' });
         } catch (e) {
-            const message = e instanceof Error ? e.message : 'Server error';
-            return NextResponse.json({ error: message }, { status: 500 });
+            console.error('Clinic controller error:', e);
+            return NextResponse.json({ error: 'Server error' }, { status: 500 });
         }
     }
 }
