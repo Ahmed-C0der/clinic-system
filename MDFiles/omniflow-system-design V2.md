@@ -1,0 +1,417 @@
+# OmniFlow — System Design
+> مُستخرج ومُهيكل من وثيقة متطلبات المنتج (PRD v1.0 - مايو 2026)
+
+> **📌 تحديث النطاق (v1.1):** تم تضييق الجمهور المستهدف ليصبح **الطلاب فقط**. تمت إضافة 3 ميزات جديدة: تتبع المحاضرات/التعلّم الذاتي (يُدخلها الطالب يدويًا لأنه لا يوجد تكامل مباشر مع أي منصة تعليمية)، قائمة TODOs سريعة، وملخص أسبوعي يُرسَل عبر بريد إلكتروني/رسالة يحتوي التحليلات.
+
+---
+
+## 1. المشكلة وكيفية حلها
+
+### المشكلة
+الأشخاص ذوو الأداء العالي (خصوصًا المطورين والطلاب) يديرون عدة "مسارات نمو" متوازية في نفس الوقت:
+تعلّم لغة، دراسة، لياقة بدنية، مهارات تقنية، عمل حر... إلخ.
+
+تطبيقات إدارة المهام التقليدية (Todoist, Notion, ...) تتعامل مع كل هذا كقائمة مهام مسطّحة (flat list)، بدون:
+- فهم أن كل مجال له **جدول زمني مستقل** (تاريخ بدء، مدة، تقدّم).
+- رؤية شاملة لكيفية **تقاطع/توازن** هذه المسارات مع بعضها في يوم معيّن.
+- اكتشاف **تعارضات الوقت** بين الأنشطة (مثلاً: نادي رياضي ومدرسة في نفس التوقيت).
+
+النتيجة: المستخدم يفقد السياق العام لحياته، ولا يعرف أين يستثمر وقته.
+
+### الحل
+**OmniFlow** = "نظام تشغيل للحياة" مبني على البيانات، حيث:
+- كل مجال حياة = **Track (مسار)** مستقل له `startDate`، مدة مستهدفة، مهام، معالم (milestones).
+- **مخطط التزامن التفاعلي (Sync Map)**: canvas مدعوم بـ GSAP يعرض كل المسارات كخطوط أفقية، وعند تمرير الماوس فوق يوم معيّن، يرسم منحنيات Bézier تربط هذا اليوم بكل المسارات الأخرى → رؤية "توازن الحياة" في لحظة واحدة.
+//TODO: understand what does mean Bazier .
+
+- **لوحة تحليلات (CEO Dashboard)**: مخطط رادار بـ 6 أبعاد + خريطة حرارية (heatmap) + توزيع الوقت.
+- **كاشف تعارضات**: قواعد تصريحية (declarative rules) تُقيَّم عند الطلب لاكتشاف تداخل الأوقات.
+- **أوضاع سياق (Context Modes)**: الواجهة تتكيف حسب النشاط الحالي (عمل عميق / صالة رياضية / مدرسة) لإخفاء الضوضاء.
+
+القيمة الجوهرية: **البيانات مُشتقة (derived) وقت الاستعلام وليست مخزّنة**، لتجنّب مشاكل عدم التزامن (مثال: نسبة التقدم % تُحسب من عدد المهام المكتملة/الإجمالي، لا تُخزَّن كعمود ثابت).
+
+---
+
+## 2. من سيستخدمه (Personas)
+
+| الشريحة | الوصف | حالة الاستخدام الأساسية | الأولوية |
+|---|---|---|---|
+| **أساسي (المستخدم الوحيد الآن)** | طالب (17-25 سنة)، مدرسة/جامعة أو self-taught | تتبع الدراسة + المحاضرات + المهام اليومية + العادات + TODOs + الاستلام الأسبوعي بالبريد | P0 |
+| **زائر خارجي (بدون حساب)** | ولي أمر / مُعلّم خصوصي (اختياري مستقبلًا عبر portalToken بنفس منطق بوابة العميل) | مشاهدة تقدم الطالب للقراءة فقط | P2 |
+
+> ملاحظة: مع التضييق للطلاب، ميزات العمل الحر (§3.7) وقوالب "developer" تبقى موجودة في المخطط كمسارات اختيارية (طالب قد يعمل فريلانس بجانب دراسته)، لكنها لم تعد الجمهور الأساسي المُستهدف بالتصميم.
+
+**مبادئ تصميم مرتبطة بالمستخدم:** Dark mode افتراضي، Keyboard-first، يعمل Offline (PWA)، WCAG 2.1 AA.
+
+---
+
+## 3. الميزات المطلوبة (Features)
+
+### أساسية (P0 — MVP)
+1. **إدارة المسارات (Tracks)** — CRUD + حساب اليوم الحالي تلقائيًا:
+   `currentDay = floor((now - startDate) / 86400000) + 1`
+2. **مخطط التزامن (Sync Map)** — SVG/Canvas + GSAP، منحنيات Bézier عند hover، أداء < 100ms، zoom/pan باللمس، احترام `prefers-reduced-motion`.
+3. **نظام المهام (Tasks)** — جدول واحد بعمودين استعلام: `dayOrder` (للمسار) و `scheduledDate` (للتقويم)، مع idempotent status toggling.
+4. **متتبع العادات والسلاسل (Habits & Streaks)** — تتبع ثنائي/كمي، حساب `currentStreak`/`longestStreak` ذريًا، قاعدة انقطاع السلسلة عند فجوة > 25 ساعة (لمعالجة DST).
+5. **لوحة تحليلات CEO** — Radar chart (6 أبعاد)، GitHub-style heatmap، توزيع الوقت الفعلي/المقدّر.
+6. **التقويم** — عرض كل المهام من كل المسارات ليوم محدد.
+
+### مهمة (P1)
+7. **مخزن الموارد (Resource Vault)** — PDF (Cloudinary/S3، حتى 50MB)، فيديو يوتيوب (بربط timestamp)، روابط، ملاحظات.
+8. **أوضاع السياق (Context Modes)** — Default / Deep Work / Gym / School، مخزّنة في Zustand + localStorage، متزامنة عبر `PATCH /user/me`.
+9. **منصة العمل الحر** — عملاء، عروض (Draft→Sent→Negotiating→Accepted/Rejected)، مشاريع، أهداف دخل، بوابة عميل عامة عبر `portalToken`.
+10. **كاشف التعارض** — قواعد تعارض بين مسارين (أيام أسبوع + وقت)، تقييم عند الطلب `GET /conflicts/detect`.
+
+### إضافية (P2)
+11. **مكتبة مطالبات الذكاء الاصطناعي (AI Prompt Library)** — تصفح ونسخ مطالبات مصنّفة حسب الفئة.
+
+### 🆕 ميزات جديدة (v1.1 — تركيز الطلاب)
+
+**12. تتبع المحاضرات / التعلّم الذاتي (Lecture Tracking)** — P0
+لا يوجد تكامل مباشر مع أي منصة تعليمية (لا Coursera، لا Zoom، لا يوتيوب API) — الطالب هو من **يُدخل البيانات يدويًا**:
+- يضيف الطالب: اسم المحاضرة/الدرس، **المدة الكاملة**، **المدة التي أنجزها**.
+- **نسبة الإنجاز % تُشتق دائمًا وقت الاستعلام** ولا تُخزَّن: `progressPercent = completedDurationMinutes / totalDurationMinutes × 100` (اتساقًا مع مبدأ "القيم المشتقة مقابل المخزّنة" في §4.3).
+- يمكن ربط المحاضرة بمسار (Track) مثل "خطة الفصل الدراسي"، أو تكون مستقلة.
+- حالة تُشتق تلقائيًا من النسبة: `not_started` (0%) / `in_progress` (1-99%) / `completed` (100%).
+- تدخل ضمن حسابات `AnalyticsLog` اليومية (بُعد إضافي في مخطط الرادار: "التعلّم الذاتي").
+
+**13. قائمة TODOs سريعة (Quick Todos)** — P0
+مختلفة عن `Task` المرتبطة بمسار وجدول زمني — هذه قائمة **خفيفة وسريعة الإضافة** بدون الحاجة لإنشاء مسار (مثال: "أراجع نوتة الرياضيات قبل الامتحان"):
+- عنوان، تاريخ استحقاق اختياري، أولوية، حالة (منجز/غير منجز).
+- تظهر في التقويم وفي لوحة التحكم اليومية جنبًا إلى جنب مع مهام المسارات، لكنها كيان منفصل في قاعدة البيانات (لا تتطلب `trackId`).
+
+**14. الملخص الأسبوعي عبر البريد/رسالة (Weekly Digest)** — P0
+- **مهمة مجدولة (Cron Job)** تُنفَّذ نهاية كل أسبوع (افتراضيًا: الجمعة أو الأحد حسب إعداد الطالب) لكل مستخدم نشط.
+- المحتوى: نسبة إنجاز مهام الأسبوع، ملخص العادات والسلاسل، ساعات المحاضرات المُنجزة مقابل المستهدفة، عدد TODOs المُنجزة، ومقتطف من التحليلات (Radar/Heatmap كصورة أو رابط).
+- قناة الإرسال قابلة للاختيار من الطالب: **بريد إلكتروني** (افتراضي) أو **رسالة (WhatsApp/SMS)** لاحقًا.
+- **Idempotent**: كل تشغيل للـ job يُنتج سجلًا واحدًا لكل (`userId`, `weekStartDate`) لمنع الإرسال المكرر لنفس الأسبوع عند إعادة تشغيل الـ job.
+- يمكن للطالب رؤية نفس الملخص داخل التطبيق (`/digest`) وليس فقط عبر البريد — الـ job يُنشئ "لقطة" (snapshot) تُعرض في الحالتين.
+
+### غير وظيفية أساسية
+- PWA: عمل offline، مزامنة عند إعادة الاتصال، مؤشر offline.
+- أداء: LCP < 1.5s، API P95 < 200ms، استعلام تقويم < 5ms، JWT عبر Redis < 1ms.
+- أمان: JWT (access 15 دقيقة) + Refresh Token rotation (7 أيام)، Rate limiting، توقيع مسبق لروابط S3 لمدة ساعة، `portalToken` = nanoid عشوائي غير قابل للتخمين.
+
+---
+
+## 4. DB Schema
+
+**التقنية:** PostgreSQL + Prisma ORM + Redis (كاش جلسات) + Cloudinary/S3 (تخزين ملفات).
+**16 نموذجًا** موزّعة على 6 مجموعات منطقية.
+
+### 4.1 المصادقة والمستخدم
+
+```
+User
+├─ id            PK
+├─ email         unique
+├─ passwordHash
+├─ name
+├─ activeMode    enum(default, deep_work, gym, school)
+├─ createdAt
+└─ updatedAt
+
+UserSettings
+├─ id            PK
+├─ userId        FK → User, unique
+├─ theme         enum(dark, light)  -- default: dark
+├─ timezone
+├─ reducedMotion boolean
+└─ notificationPrefs  json
+
+Session
+├─ id            PK
+├─ userId        FK → User
+├─ refreshToken  unique
+├─ userAgent
+├─ ipAddress
+├─ createdAt
+├─ expiresAt
+└─ revokedAt      nullable   -- سجل تدقيق دائم + إلغاء لكل جهاز
+```
+
+### 4.2 نظام المسارات (Track System)
+
+```
+Track
+├─ id                 PK
+├─ userId             FK → User
+├─ name
+├─ category           enum(developer, learning, school, health, freelance)
+├─ color              string (hex)
+├─ startDate           date
+├─ targetDurationDays  int
+├─ sortOrder           int      -- لترتيب المسارات في Sync Map
+└─ createdAt
+
+Task
+├─ id             PK
+├─ trackId        FK → Track
+├─ userId         FK → User
+├─ title
+├─ description
+├─ dayOrder        int         -- ترتيب اليوم ضمن المسار
+├─ scheduledDate   date        -- يُحسب مرة واحدة عند الإنشاء = startDate + (dayOrder-1) يوم
+├─ status          enum(pending, completed, skipped)
+├─ estimatedMinutes
+├─ actualMinutes
+├─ resourceId      FK → Resource, nullable
+├─ resourcePage    int/nullable  -- رقم صفحة PDF أو ثانية فيديو
+├─ createdAt
+└─ completedAt     nullable
+   INDEX (scheduledDate, trackId)   -- < 5ms على أي نطاق
+
+Milestone
+├─ id          PK
+├─ trackId     FK → Track
+├─ title
+├─ dayOrder
+└─ achievedAt  nullable
+
+Resource
+├─ id         PK
+├─ userId     FK → User
+├─ trackId    FK → Track, nullable
+├─ type       enum(pdf, video, link, note)
+├─ title
+├─ url        -- رابط S3/Cloudinary موقّع مسبقًا أو رابط خارجي (يوتيوب)
+├─ content    text, nullable  -- للملاحظات الداخلية فقط
+└─ createdAt
+```
+
+### 4.3 العادات (Habits)
+
+```
+Habit
+├─ id             PK
+├─ userId         FK → User
+├─ name
+├─ type           enum(binary, quantitative)
+├─ targetValue    nullable  -- للنوع الكمي (مثلاً: عدد الصفحات)
+├─ unit           nullable
+├─ currentStreak  int   -- محدث ذريًا مع كل POST /log
+├─ longestStreak  int
+└─ createdAt
+
+HabitLog
+├─ id         PK
+├─ habitId    FK → Habit
+├─ loggedAt   datetime
+├─ value      nullable (للنوع الكمي)
+└─ note       nullable
+   UNIQUE (habitId, date_trunc(loggedAt))  -- idempotent عند التسجيل المتكرر في نفس اليوم
+```
+
+### 4.4 التحليلات (Analytics)
+
+```
+AnalyticsLog
+├─ id             PK
+├─ userId         FK → User
+├─ trackId        FK → Track
+├─ logDate        date
+├─ completionRate float   -- لقطة يومية، لا تُعاد حسابها أبدًا
+├─ dimension      string  -- لبُعد مخطط الرادار
+└─ createdAt
+   UNIQUE (userId, trackId, logDate)
+
+Goal
+├─ id            PK
+├─ userId        FK → User
+├─ title
+├─ targetValue
+├─ currentValue
+├─ period         enum(monthly, quarterly, yearly)
+└─ deadline
+```
+
+### 4.5 منصة العمل الحر (Freelance)
+
+```
+FreelanceClient
+├─ id         PK
+├─ userId     FK → User
+├─ name
+├─ email
+├─ company
+└─ createdAt
+
+Proposal
+├─ id         PK
+├─ clientId   FK → FreelanceClient
+├─ title
+├─ status     enum(draft, sent, negotiating, accepted, rejected)
+├─ amount
+└─ sentAt
+
+Project
+├─ id               PK
+├─ clientId         FK → FreelanceClient
+├─ proposalId       FK → Proposal, nullable
+├─ title
+├─ status
+├─ portalToken       unique  -- nanoid عشوائي مشفر؛ هو عنصر التحكم بالوصول الوحيد
+├─ progressPercent   -- مُشتق وقت الاستعلام من حالة المهام المرتبطة
+├─ startDate
+└─ dueDate
+```
+
+### 🆕 4.5.b التعلّم الذاتي والمهام السريعة (Student Additions — v1.1)
+
+```
+Lecture
+├─ id                       PK
+├─ userId                   FK → User
+├─ trackId                  FK → Track, nullable  -- اختياري: ربط بمسار "المدرسة/التعلم"
+├─ title
+├─ totalDurationMinutes     int      -- يُدخله الطالب يدويًا
+├─ completedDurationMinutes int      -- يُدخله الطالب يدويًا (يُحدَّث تدريجيًا)
+├─ progressPercent          -- ⚠️ لا يُخزَّن؛ مُشتق = completedDurationMinutes/totalDurationMinutes×100
+├─ status                   -- ⚠️ مُشتق من النسبة: not_started/in_progress/completed
+├─ notes                    text, nullable
+├─ createdAt
+└─ updatedAt
+
+Todo
+├─ id           PK
+├─ userId       FK → User
+├─ title
+├─ dueDate      date, nullable
+├─ priority     enum(low, medium, high), nullable
+├─ isDone       boolean, default false
+├─ createdAt
+└─ completedAt  nullable
+   INDEX (userId, dueDate)   -- لعرضها سريعًا في التقويم/لوحة اليوم
+
+WeeklyDigestLog
+├─ id             PK
+├─ userId         FK → User
+├─ weekStartDate  date
+├─ weekEndDate    date
+├─ channel        enum(email, whatsapp, sms)
+├─ status         enum(pending, sent, failed)
+├─ contentSnapshot json   -- لقطة البيانات المُرسَلة (لعرضها لاحقًا في /digest بدون إعادة حساب)
+├─ sentAt         nullable
+└─ createdAt
+   UNIQUE (userId, weekStartDate)   -- idempotency: منع تكرار إرسال نفس الأسبوع
+```
+
+**تحديث على `UserSettings`:**
+```
+UserSettings
+├─ ... (كما في §4.1)
+├─ digestEnabled     boolean, default true
+├─ digestChannel     enum(email, whatsapp, sms), default email
+├─ digestDayOfWeek   int (0-6), default 5  -- الجمعة
+└─ digestSendTime    time, default '20:00'
+```
+
+### 4.6 النظام (System)
+
+```
+ConflictRule
+├─ id          PK
+├─ userId      FK → User
+├─ trackAId    FK → Track
+├─ trackBId    FK → Track
+├─ daysOfWeek  int[]  -- 0-6
+├─ startTime
+├─ endTime
+└─ severity    enum(warning, critical)
+
+PromptEntry
+├─ id        PK
+├─ userId    FK → User, nullable (يمكن أن تكون عامة)
+├─ category
+├─ title
+├─ content   text
+└─ createdAt
+```
+
+### 4.7 قرارات تصميم رئيسية
+- **جدول مهام واحد فقط** (لا `DailyTasks` منفصل) — نمطا استعلام على نفس الجدول (`trackId+dayOrder` أو `scheduledDate`) لتجنّب مشكلة "انقسام الدماغ" في المزامنة.
+- **قيم مُشتقة لا تُخزَّن**: `progressPercent`, `currentDay` تُحسب وقت الاستعلام.
+- **قيم مُخزَّنة لأن حسابها متكرر ومكلف**: `scheduledDate`, `completionRate` في `AnalyticsLog`, `currentStreak`.
+- كل استعلامات بيانات المستخدم تُطبّق `WHERE userId = authenticatedUser.id` لمنع IDOR.
+
+### 🆕 4.8 طبقة الجدولة والإشعارات (v1.1)
+
+| مكوّن | تقنية مقترحة | مسؤولية |
+|---|---|---|
+| Job Scheduler | BullMQ (فوق Redis الموجود أصلًا) أو node-cron | تشغيل مهمة يومية تفحص من يستحق "ملخص اليوم" حسب `digestDayOfWeek` |
+| خدمة البريد | Resend / SendGrid | إرسال الملخص الأسبوعي كبريد HTML |
+| خدمة الرسائل (اختياري لاحقًا) | Twilio / WhatsApp Business API | إرسال الملخص كرسالة نصية |
+
+**تدفق تنفيذ الـ Job الأسبوعي:**
+1. Cron يعمل يوميًا الساعة 00:05، ويفحص المستخدمين اللي `digestDayOfWeek` بتاعهم = اليوم الحالي و`digestEnabled = true`.
+2. لكل مستخدم: تجميع بيانات الأسبوع من `Task` + `HabitLog` + `Lecture` + `Todo` + `AnalyticsLog`.
+3. إنشاء سجل `WeeklyDigestLog` (status=pending) مع `contentSnapshot` (JSON بالأرقام النهائية، بحيث لا يُعاد الحساب لاحقًا عند عرضه في `/digest`).
+4. إرسال عبر القناة المفضّلة → تحديث `status` إلى `sent`/`failed`.
+5. عند الفشل: إعادة محاولة (retry) بحد أقصى 3 مرات مع backoff، دون إنشاء سجل مكرر (بفضل قيد `UNIQUE(userId, weekStartDate)`).
+
+---
+
+## 5. Site Map
+
+```
+/                              → صفحة هبوط (Landing) - غير مسجل
+/login                         → تسجيل الدخول
+/register                      → إنشاء حساب
+
+── (بعد تسجيل الدخول) ──
+/dashboard                     → CEO Dashboard: Radar Chart + Heatmap + Streaks + Time Distribution
+/sync-map                      → مخطط التزامن التفاعلي (الميزة الرئيسية)
+
+/tracks                        → قائمة كل المسارات (مرتبة بـ sortOrder)
+/tracks/new                    → إنشاء مسار جديد
+/tracks/:id                    → تفاصيل مسار: المهام + المعالم + الموارد المرتبطة
+
+/calendar                      → عرض تقويمي لكل المهام من كل المسارات (بحسب scheduledDate)
+/calendar/:date                → مهام يوم محدد
+
+/habits                        → قائمة العادات + مؤشرات السلاسل (streaks)
+/habits/:id                    → تفاصيل عادة + سجل التسجيلات
+
+/lectures                      → 🆕 قائمة المحاضرات/الدروس (يضيفها الطالب يدويًا) + نسبة الإنجاز
+/lectures/new                  → 🆕 إضافة محاضرة (اسم، مدة كاملة، مدة منجزة)
+/lectures/:id                  → 🆕 تفاصيل محاضرة + تحديث المدة المنجزة
+
+/todos                         → 🆕 قائمة TODOs السريعة (منفصلة عن مهام المسارات)
+
+/digest                        → 🆕 الملخص الأسبوعي داخل التطبيق (نفس محتوى البريد المُرسَل)
+/settings/digest               → 🆕 إعدادات الملخص الأسبوعي (تفعيل/تعطيل، القناة، اليوم، الوقت)
+
+/resources                     → مخزن الموارد (فلترة حسب نوع/مسار)
+/resources/:id                 → عارض المورد (PDF viewer / رابط يوتيوب بالطابع الزمني)
+
+/freelance                     → لوحة العمل الحر (اختياري — طالب قد يعمل فريلانس بجانب دراسته): أهداف الدخل + قائمة العملاء
+/freelance/clients/:id         → ملف العميل: العروض + المشاريع
+/freelance/proposals/:id       → تفاصيل عرض (مسار الحالة)
+/freelance/projects/:id        → تفاصيل مشروع (يشمل رابط بوابة العميل)
+/freelance/portal/:portalToken → 🔓 صفحة عامة بدون مصادقة: تقدم المشروع للقراءة فقط (للعميل)
+
+/conflicts                     → عرض تعارضات الجدول المكتشفة (تحذير/حرج)
+/conflicts/rules               → إدارة قواعد التعارض
+
+/prompts                       → مكتبة مطالبات الذكاء الاصطناعي (فلترة حسب فئة)
+
+/settings                      → إعدادات المستخدم (الثيم، المنطقة الزمنية، الوضع النشط)
+/settings/sessions             → إدارة الجلسات النشطة (إلغاء تسجيل الدخول من جهاز)
+```
+
+**ملاحظة معمارية:** أوضاع السياق (Deep Work / Gym / School) لا تُنشئ صفحات منفصلة — بل تُصفّي الوحدات الظاهرة داخل نفس الصفحات (`/dashboard`, `/tracks`, إلخ) حسب `User.activeMode`.
+
+---
+
+## ملخص خارطة الطريق (7 مراحل)
+
+| مرحلة | المحتوى | المدة |
+|---|---|---|
+| 1 | مصادقة + CRUD المسارات | أسبوع 1 |
+| 2 | نظام المهام + التقويم | أسبوع 2 |
+| 3 | العادات والسلاسل | أسبوع 3 |
+| 4 | مخطط التزامن (الأعلى خطورة تقنية) | أسبوع 4-5 |
+| 5 | لوحة التحليلات | أسبوع 6 |
+| 6 | العمل الحر + الموارد | أسبوع 7 |
+| 7 | PWA + كاشف التعارض + مكتبة المطالبات | أسبوع 8 |
+| 8 🆕 | تتبع المحاضرات + TODOs السريعة + الملخص الأسبوعي (Job Scheduler + بريد) | أسبوع 9 |
